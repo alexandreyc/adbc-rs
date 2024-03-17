@@ -90,7 +90,7 @@ pub trait Connection: Optionable {
 
 pub trait Statement {
     fn bind(&mut self, batch: RecordBatch) -> Result<()>;
-    fn bind_stream(&mut self, reader: impl RecordBatchReader) -> Result<()>;
+    fn bind_stream(&mut self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()>;
     fn execute(&mut self) -> Result<impl RecordBatchReader>;
     fn execute_update(&mut self) -> Result<i64>;
     fn execute_schema(&mut self) -> Result<Schema>;

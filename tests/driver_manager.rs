@@ -1,6 +1,10 @@
 use std::os::raw::{c_int, c_void};
+use std::sync::Arc;
 
-use arrow::record_batch::RecordBatch;
+use arrow::array::{Array, Int64Array};
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use arrow::error::ArrowError;
+use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use adbc_rs::driver_manager::DriverManager;
 use adbc_rs::options::{AdbcVersion, InfoCode, ObjectDepth, OptionValue};
@@ -297,6 +301,64 @@ fn test_statement_cancel() {
 
     let error = statement.cancel().unwrap_err();
     assert!(error.message.unwrap().contains("not supported")); // TODO: improve our error type
+}
+
+#[test]
+fn test_statement_bind() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, true)]));
+    let columns: Vec<Arc<dyn Array>> = vec![Arc::new(Int64Array::from(vec![1, 2, 3]))];
+    let batch = RecordBatch::try_new(schema, columns).unwrap();
+
+    statement.bind(batch).unwrap();
+}
+
+#[test]
+fn test_statement_bind_stream() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, true)]));
+    let columns: Vec<Arc<dyn Array>> = vec![Arc::new(Int64Array::from(vec![1, 2, 3]))];
+    let batch = RecordBatch::try_new(schema, columns).unwrap();
+    let reader = SingleBatchReader::new(batch);
+
+    statement.bind_stream(Box::new(reader)).unwrap();
+}
+
+struct SingleBatchReader {
+    batch: Option<RecordBatch>,
+    schema: SchemaRef,
+}
+
+impl SingleBatchReader {
+    pub fn new(batch: RecordBatch) -> Self {
+        let schema = batch.schema();
+        Self {
+            batch: Some(batch),
+            schema,
+        }
+    }
+}
+
+impl Iterator for SingleBatchReader {
+    type Item = std::result::Result<RecordBatch, ArrowError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Ok(self.batch.take()).transpose()
+    }
+}
+
+impl RecordBatchReader for SingleBatchReader {
+    fn schema(&self) -> SchemaRef {
+        self.schema.clone()
+    }
 }
 
 // TODOs

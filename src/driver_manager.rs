@@ -3,8 +3,8 @@ use std::os::raw::c_void;
 use std::ptr::{null, null_mut};
 use std::rc::Rc;
 
-use arrow::array::RecordBatchReader;
-use arrow::ffi::FFI_ArrowSchema;
+use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
+use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::ffi::FFI_AdbcStatement;
@@ -518,12 +518,23 @@ pub struct ManagedStatement {
     version: AdbcVersion,
 }
 impl Statement for ManagedStatement {
-    fn bind(&mut self, batch: arrow::array::RecordBatch) -> Result<()> {
-        todo!()
+    fn bind(&mut self, batch: RecordBatch) -> Result<()> {
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementBind);
+        let batch: StructArray = batch.into();
+        let (mut array, mut schema) = to_ffi(&batch.to_data())?;
+        let status = unsafe { method(&mut self.statement, &mut array, &mut schema, &mut error) };
+        check_status(status, error)?;
+        Ok(())
     }
 
-    fn bind_stream(&mut self, reader: impl RecordBatchReader) -> Result<()> {
-        todo!()
+    fn bind_stream(&mut self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()> {
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementBindStream);
+        let mut stream = FFI_ArrowArrayStream::new(reader);
+        let status = unsafe { method(&mut self.statement, &mut stream, &mut error) };
+        check_status(status, error)?;
+        Ok(())
     }
 
     fn cancel(&mut self) -> Result<()> {
