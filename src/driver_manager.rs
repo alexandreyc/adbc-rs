@@ -444,8 +444,44 @@ impl Connection for ManagedConnection {
         db_schema: Option<&str>,
         table_name: Option<&str>,
         approximate: bool,
-    ) -> Result<ArrowArrayStreamReader> {
-        todo!()
+    ) -> Result<impl RecordBatchReader> {
+        if let AdbcVersion::V100 = self.version {
+            return Err("Statistics are not supported with ADBC 1.0.0".into());
+        }
+
+        let catalog = catalog
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let db_schema = db_schema
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let table_name = table_name
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+
+        let mut error = ffi::FFI_AdbcError::default();
+        let mut stream = FFI_ArrowArrayStream::empty();
+        let method = crate::driver_method!(self.driver, ConnectionGetStatistics);
+        let status = unsafe {
+            method(
+                &mut self.connection,
+                catalog,
+                db_schema,
+                table_name,
+                approximate as std::os::raw::c_char,
+                &mut stream,
+                &mut error,
+            )
+        };
+        check_status(status, error)?;
+        let reader = ArrowArrayStreamReader::try_new(stream)?;
+        Ok(reader)
     }
 
     fn get_statistics_name(&mut self) -> Result<impl RecordBatchReader> {

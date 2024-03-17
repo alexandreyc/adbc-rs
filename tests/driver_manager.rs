@@ -212,6 +212,14 @@ fn test_connection_get_statistics_name() {
 }
 
 #[test]
+fn test_connection_get_statistics() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    assert!(connection.get_statistics(None, None, None, false).is_err());
+}
+
+#[test]
 fn test_statement_prepare() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
