@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use std::os::raw::c_void;
-use std::ptr::null;
+use std::ptr::{null, null_mut};
 use std::rc::Rc;
 
 use arrow::array::RecordBatchReader;
@@ -528,8 +528,14 @@ impl Statement for ManagedStatement {
         todo!()
     }
 
-    fn execute(&mut self) -> Result<ArrowArrayStreamReader> {
-        todo!()
+    fn execute(&mut self) -> Result<impl RecordBatchReader> {
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementExecuteQuery);
+        let mut stream = FFI_ArrowArrayStream::empty();
+        let status = unsafe { method(&mut self.statement, &mut stream, null_mut(), &mut error) };
+        check_status(status, error)?;
+        let reader = ArrowArrayStreamReader::try_new(stream)?;
+        Ok(reader)
     }
 
     fn execute_schema(&mut self) -> Result<arrow::datatypes::Schema> {
@@ -537,7 +543,19 @@ impl Statement for ManagedStatement {
     }
 
     fn execute_update(&mut self) -> Result<i64> {
-        todo!()
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementExecuteQuery);
+        let mut rows_affected: i64 = -1;
+        let status = unsafe {
+            method(
+                &mut self.statement,
+                null_mut(),
+                &mut rows_affected,
+                &mut error,
+            )
+        };
+        check_status(status, error)?;
+        Ok(rows_affected)
     }
 
     fn get_parameters_schema(&mut self) -> Result<arrow::datatypes::Schema> {

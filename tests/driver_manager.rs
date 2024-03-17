@@ -244,5 +244,38 @@ fn test_statement_get_parameters_schema() {
     statement.get_parameters_schema().unwrap();
 }
 
+#[test]
+fn test_statement_execute() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    assert!(statement.execute().is_err());
+
+    statement.set_sql_query("select 42").unwrap();
+    let batches: Vec<RecordBatch> = statement.execute().unwrap().map(|b| b.unwrap()).collect();
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].num_rows(), 1);
+    assert_eq!(batches[0].num_columns(), 1);
+}
+
+#[test]
+fn test_statement_execute_update() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    assert!(statement.execute_update().is_err());
+
+    statement.set_sql_query("create table t(a int)").unwrap();
+    statement.execute_update().unwrap();
+
+    statement.set_sql_query("insert into t values(42)").unwrap();
+    let rows_affected = statement.execute_update().unwrap();
+    assert_eq!(rows_affected, 1);
+}
+
 // TODOs
 // - Test `get_option_*`
