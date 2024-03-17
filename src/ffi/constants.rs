@@ -39,11 +39,11 @@ pub(crate) const ADBC_INFO_DRIVER_VERSION: u32 = 101;
 pub(crate) const ADBC_INFO_DRIVER_ARROW_VERSION: u32 = 102;
 pub(crate) const ADBC_INFO_DRIVER_ADBC_VERSION: u32 = 103;
 
-const ADBC_OBJECT_DEPTH_ALL: c_int = 0;
-const ADBC_OBJECT_DEPTH_CATALOGS: c_int = 1;
-const ADBC_OBJECT_DEPTH_DB_SCHEMAS: c_int = 2;
-const ADBC_OBJECT_DEPTH_TABLES: c_int = 3;
-const ADBC_OBJECT_DEPTH_COLUMNS: c_int = ADBC_OBJECT_DEPTH_ALL;
+pub(crate) const ADBC_OBJECT_DEPTH_ALL: c_int = 0;
+pub(crate) const ADBC_OBJECT_DEPTH_CATALOGS: c_int = 1;
+pub(crate) const ADBC_OBJECT_DEPTH_DB_SCHEMAS: c_int = 2;
+pub(crate) const ADBC_OBJECT_DEPTH_TABLES: c_int = 3;
+pub(crate) const ADBC_OBJECT_DEPTH_COLUMNS: c_int = ADBC_OBJECT_DEPTH_ALL;
 
 pub(crate) const ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA: i32 = i32::MIN;
 

@@ -1,4 +1,5 @@
 use crate::ffi::constants;
+use std::os::raw::c_int;
 
 pub enum OptionValue {
     String(String),
@@ -41,6 +42,18 @@ impl From<&InfoCode> for u32 {
             InfoCode::DriverVersion => constants::ADBC_INFO_DRIVER_VERSION,
             InfoCode::DriverArrowVersion => constants::ADBC_INFO_DRIVER_ARROW_VERSION,
             InfoCode::DriverAdbcVersion => constants::ADBC_INFO_DRIVER_ADBC_VERSION,
+        }
+    }
+}
+
+impl From<ObjectDepth> for c_int {
+    fn from(value: ObjectDepth) -> Self {
+        match value {
+            ObjectDepth::All => constants::ADBC_OBJECT_DEPTH_ALL,
+            ObjectDepth::Catalogs => constants::ADBC_OBJECT_DEPTH_CATALOGS,
+            ObjectDepth::Schemas => constants::ADBC_OBJECT_DEPTH_DB_SCHEMAS,
+            ObjectDepth::Tables => constants::ADBC_OBJECT_DEPTH_TABLES,
+            ObjectDepth::Columns => constants::ADBC_OBJECT_DEPTH_COLUMNS,
         }
     }
 }

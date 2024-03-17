@@ -3,7 +3,7 @@ use std::os::raw::{c_int, c_void};
 use arrow::record_batch::RecordBatch;
 
 use adbc_rs::driver_manager::DriverManager;
-use adbc_rs::options::{AdbcVersion, InfoCode, OptionValue};
+use adbc_rs::options::{AdbcVersion, InfoCode, ObjectDepth, OptionValue};
 use adbc_rs::{ffi, Connection, Database};
 use adbc_rs::{Driver, Optionable};
 
@@ -80,10 +80,12 @@ fn test_connection() {
     assert!(connection
         .set_option("my.option", OptionValue::String("".into()))
         .is_err());
+
+    assert!(connection.new_statement().is_ok());
 }
 
 #[test]
-fn test_get_table_types() {
+fn test_connection_get_table_types() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
@@ -99,7 +101,7 @@ fn test_get_table_types() {
 }
 
 #[test]
-fn test_get_info() {
+fn test_connection_get_info() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
@@ -127,3 +129,54 @@ fn test_get_info() {
     assert_eq!(info[0].num_columns(), 2);
     assert_eq!(info[0].num_rows(), 4);
 }
+
+#[test]
+fn test_connection_get_objects() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+
+    let objects: Vec<RecordBatch> = connection
+        .get_objects(ObjectDepth::All, None, None, None, None, None)
+        .unwrap()
+        .map(|b| b.unwrap())
+        .collect();
+    assert_eq!(objects.len(), 1);
+    assert_eq!(objects[0].num_rows(), 1);
+    assert_eq!(objects[0].num_columns(), 2);
+
+    let objects: Vec<RecordBatch> = connection
+        .get_objects(
+            ObjectDepth::All,
+            None,
+            None,
+            None,
+            Some(&["table", "view"]),
+            None,
+        )
+        .unwrap()
+        .map(|b| b.unwrap())
+        .collect();
+    assert_eq!(objects.len(), 1);
+    assert_eq!(objects[0].num_rows(), 1);
+    assert_eq!(objects[0].num_columns(), 2);
+
+    let objects: Vec<RecordBatch> = connection
+        .get_objects(
+            ObjectDepth::All,
+            Some("my_catalog"),
+            Some("my_schema"),
+            Some("my_table"),
+            Some(&["table", "view"]),
+            Some("my_column"),
+        )
+        .unwrap()
+        .map(|b| b.unwrap())
+        .collect();
+    assert_eq!(objects.len(), 1);
+    assert_eq!(objects[0].num_rows(), 0);
+    assert_eq!(objects[0].num_columns(), 2);
+}
+
+// TODOs
+// - Test `get_option_*`

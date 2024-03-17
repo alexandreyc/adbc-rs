@@ -371,8 +371,65 @@ impl Connection for ManagedConnection {
         table_name: Option<&str>,
         table_type: Option<&[&str]>,
         column_name: Option<&str>,
-    ) -> Result<ArrowArrayStreamReader> {
-        todo!()
+    ) -> Result<impl RecordBatchReader> {
+        let catalog = catalog
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let db_schema = db_schema
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let table_name = table_name
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let column_name = column_name
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let table_type = table_type
+            .map(|t| {
+                t.iter()
+                    .map(|x| CString::new(*x))
+                    .collect::<std::result::Result<Vec<CString>, _>>()
+            })
+            .transpose()?;
+        let table_type = table_type
+            .as_ref()
+            .map(|c| {
+                let mut array = c.iter().map(|c| c.as_ptr()).collect::<Vec<_>>();
+                array.push(null());
+                array
+            })
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, ConnectionGetObjects);
+        let mut stream = FFI_ArrowArrayStream::empty();
+
+        let status = unsafe {
+            method(
+                &mut self.connection,
+                depth.into(),
+                catalog,
+                db_schema,
+                table_name,
+                table_type,
+                column_name,
+                &mut stream,
+                &mut error,
+            )
+        };
+        check_status(status, error)?;
+
+        let reader = ArrowArrayStreamReader::try_new(stream)?;
+        Ok(reader)
     }
 
     fn get_statistics(
