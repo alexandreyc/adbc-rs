@@ -288,5 +288,16 @@ fn test_statement_execute_schema() {
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
+#[test]
+fn test_statement_cancel() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    let error = statement.cancel().unwrap_err();
+    assert!(error.message.unwrap().contains("not supported")); // TODO: improve our error type
+}
+
 // TODOs
 // - Test `get_option_*`

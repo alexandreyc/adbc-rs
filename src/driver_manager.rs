@@ -326,6 +326,7 @@ impl Connection for ManagedConnection {
         Ok(Self::StatementType {
             driver: self.driver.clone(),
             statement,
+            version: self.version,
         })
     }
 
@@ -514,6 +515,7 @@ impl Drop for ManagedConnection {
 pub struct ManagedStatement {
     driver: Rc<ffi::FFI_AdbcDriver>,
     statement: FFI_AdbcStatement,
+    version: AdbcVersion,
 }
 impl Statement for ManagedStatement {
     fn bind(&mut self, batch: arrow::array::RecordBatch) -> Result<()> {
@@ -525,7 +527,15 @@ impl Statement for ManagedStatement {
     }
 
     fn cancel(&mut self) -> Result<()> {
-        todo!()
+        match self.version {
+            AdbcVersion::V100 => Err("Canceling statement is not supported with ADBC 1.0.0".into()),
+            AdbcVersion::V110 => {
+                let mut error = ffi::FFI_AdbcError::default();
+                let method = crate::driver_method!(self.driver, StatementCancel);
+                let status = unsafe { method(&mut self.statement, &mut error) };
+                check_status(status, error)
+            }
+        }
     }
 
     fn execute(&mut self) -> Result<impl RecordBatchReader> {
