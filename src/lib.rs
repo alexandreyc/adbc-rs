@@ -1,5 +1,5 @@
 pub mod driver_manager;
-mod error;
+pub mod error;
 pub mod ffi;
 pub mod options;
 

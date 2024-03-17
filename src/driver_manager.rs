@@ -545,15 +545,28 @@ impl Statement for ManagedStatement {
     }
 
     fn prepare(&mut self) -> Result<()> {
-        todo!()
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementPrepare);
+        let status = unsafe { method(&mut self.statement, &mut error) };
+        check_status(status, error)?;
+        Ok(())
     }
 
     fn set_sql_query(&mut self, query: &str) -> Result<()> {
-        todo!()
+        let query = CString::new(query)?;
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementSetSqlQuery);
+        let status = unsafe { method(&mut self.statement, query.as_ptr(), &mut error) };
+        check_status(status, error)?;
+        Ok(())
     }
 
     fn set_substrait_plan(&mut self, plan: &[u8]) -> Result<()> {
-        todo!()
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementSetSubstraitPlan);
+        let status = unsafe { method(&mut self.statement, plan.as_ptr(), plan.len(), &mut error) };
+        check_status(status, error)?;
+        Ok(())
     }
 }
 impl Drop for ManagedStatement {

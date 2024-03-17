@@ -4,8 +4,8 @@ use arrow::record_batch::RecordBatch;
 
 use adbc_rs::driver_manager::DriverManager;
 use adbc_rs::options::{AdbcVersion, InfoCode, ObjectDepth, OptionValue};
-use adbc_rs::{ffi, Connection, Database};
-use adbc_rs::{Driver, Optionable};
+use adbc_rs::{error::Status, Driver, Optionable};
+use adbc_rs::{ffi, Connection, Database, Statement};
 
 #[link(name = "adbc_driver_sqlite", kind = "static")]
 extern "C" {
@@ -183,10 +183,50 @@ fn test_connection_get_table_schema() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
+
     let schema = connection
         .get_table_schema(None, None, "sqlite_master")
         .unwrap();
     assert_eq!(schema.fields().len(), 5);
+
+    let schema = connection.get_table_schema(None, None, "my_table");
+    assert!(schema.is_err());
+
+    // TODO: this panics because the SQLite C driver does not treat a non-null catalog (or schema)
+    // as an error, instead it returns a zeroed schema...
+    // See: SqliteConnectionGetTableSchema
+    // let schema = connection.get_table_schema(Some("my_catalog"), None, "sqlite_master");
+    // assert!(schema.is_err());
+}
+
+#[test]
+fn test_statement_prepare() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+    let error = statement.prepare().unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::InvalidState);
+}
+
+#[test]
+fn test_statement_set_sql_query_and_prepare() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+    statement.set_sql_query("select 42").unwrap();
+    statement.prepare().unwrap();
+}
+
+#[test]
+fn test_statement_set_substrait_plan() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+    let error = statement.set_substrait_plan(b"").unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
 // TODOs

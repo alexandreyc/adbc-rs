@@ -2,7 +2,7 @@ use std::ffi::NulError;
 
 use arrow;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Status {
     Ok,               // ADBC_STATUS_OK
     Unknown,          // ADBC_STATUS_UNKNOWN
@@ -23,11 +23,11 @@ pub enum Status {
 
 #[derive(Debug)]
 pub struct Error {
-    pub(crate) message: Option<String>,
-    pub(crate) status: Option<Status>,
-    pub(crate) vendor_code: i32,
-    pub(crate) sqlstate: [i8; 5],
-    pub(crate) details: Option<Vec<(String, Vec<u8>)>>,
+    pub message: Option<String>,
+    pub status: Option<Status>,
+    pub vendor_code: i32,
+    pub sqlstate: [i8; 5],
+    pub details: Option<Vec<(String, Vec<u8>)>>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
