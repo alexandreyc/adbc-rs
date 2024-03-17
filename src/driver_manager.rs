@@ -541,7 +541,12 @@ impl Statement for ManagedStatement {
     }
 
     fn get_parameters_schema(&mut self) -> Result<arrow::datatypes::Schema> {
-        todo!()
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementGetParameterSchema);
+        let mut schema = FFI_ArrowSchema::empty();
+        let status = unsafe { method(&mut self.statement, &mut schema, &mut error) };
+        check_status(status, error)?;
+        Ok((&schema).try_into()?)
     }
 
     fn prepare(&mut self) -> Result<()> {

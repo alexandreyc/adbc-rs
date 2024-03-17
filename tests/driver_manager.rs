@@ -229,5 +229,20 @@ fn test_statement_set_substrait_plan() {
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
+#[test]
+fn test_statement_get_parameters_schema() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    let error = statement.get_parameters_schema().unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::InvalidState);
+
+    statement.set_sql_query("select 42").unwrap();
+    statement.prepare().unwrap();
+    statement.get_parameters_schema().unwrap();
+}
+
 // TODOs
 // - Test `get_option_*`
