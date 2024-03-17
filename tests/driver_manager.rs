@@ -178,5 +178,16 @@ fn test_connection_get_objects() {
     assert_eq!(objects[0].num_columns(), 2);
 }
 
+#[test]
+fn test_connection_get_table_schema() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let schema = connection
+        .get_table_schema(None, None, "sqlite_master")
+        .unwrap();
+    assert_eq!(schema.fields().len(), 5);
+}
+
 // TODOs
 // - Test `get_option_*`

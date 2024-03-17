@@ -73,7 +73,6 @@ pub trait Connection: Optionable {
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: &str,
-        approximate: bool,
     ) -> Result<Schema>;
     fn get_table_types(&mut self) -> Result<impl RecordBatchReader>;
     fn get_statistics_name(&mut self) -> Result<impl RecordBatchReader>;
@@ -82,6 +81,7 @@ pub trait Connection: Optionable {
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: Option<&str>,
+        approximate: bool,
     ) -> Result<impl RecordBatchReader>;
     fn commit(&mut self) -> Result<()>;
     fn rollback(&mut self) -> Result<()>;

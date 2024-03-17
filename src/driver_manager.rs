@@ -4,6 +4,7 @@ use std::ptr::null;
 use std::rc::Rc;
 
 use arrow::array::RecordBatchReader;
+use arrow::ffi::FFI_ArrowSchema;
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::ffi::FFI_AdbcStatement;
@@ -437,6 +438,7 @@ impl Connection for ManagedConnection {
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: Option<&str>,
+        approximate: bool,
     ) -> Result<ArrowArrayStreamReader> {
         todo!()
     }
@@ -450,9 +452,34 @@ impl Connection for ManagedConnection {
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: &str,
-        approximate: bool,
     ) -> Result<arrow::datatypes::Schema> {
-        todo!()
+        let catalog = catalog
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let db_schema = db_schema
+            .map(|c| CString::new(c))
+            .transpose()?
+            .map(|c| c.as_ptr())
+            .unwrap_or(null());
+        let table_name = CString::new(table_name)?;
+
+        let mut error = ffi::FFI_AdbcError::default();
+        let mut schema = FFI_ArrowSchema::empty();
+        let method = crate::driver_method!(self.driver, ConnectionGetTableSchema);
+        let status = unsafe {
+            method(
+                &mut self.connection,
+                catalog,
+                db_schema,
+                table_name.as_ptr(),
+                &mut schema,
+                &mut error,
+            )
+        };
+        check_status(status, error)?;
+        Ok((&schema).try_into()?)
     }
 
     fn get_table_types(&mut self) -> Result<impl RecordBatchReader> {
