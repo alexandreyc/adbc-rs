@@ -338,6 +338,10 @@ impl Connection for ManagedConnection {
         todo!()
     }
 
+    fn rollback(&mut self) -> Result<()> {
+        todo!()
+    }
+
     fn get_info(
         &mut self,
         codes: Option<&[crate::options::InfoCode]>,
@@ -444,8 +448,17 @@ impl Connection for ManagedConnection {
         todo!()
     }
 
-    fn get_statistics_name(&mut self) -> Result<ArrowArrayStreamReader> {
-        todo!()
+    fn get_statistics_name(&mut self) -> Result<impl RecordBatchReader> {
+        if let AdbcVersion::V100 = self.version {
+            return Err("Statistics are not supported with ADBC 1.0.0".into());
+        }
+        let mut error = ffi::FFI_AdbcError::default();
+        let mut stream = FFI_ArrowArrayStream::empty();
+        let method = crate::driver_method!(self.driver, ConnectionGetStatisticNames);
+        let status = unsafe { method(&mut self.connection, &mut stream, &mut error) };
+        check_status(status, error)?;
+        let reader = ArrowArrayStreamReader::try_new(stream)?;
+        Ok(reader)
     }
 
     fn get_table_schema(
@@ -494,10 +507,6 @@ impl Connection for ManagedConnection {
     }
 
     fn read_partition(&mut self, partition: &[u8]) -> Result<ArrowArrayStreamReader> {
-        todo!()
-    }
-
-    fn rollback(&mut self) -> Result<()> {
         todo!()
     }
 }
