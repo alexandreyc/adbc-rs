@@ -401,6 +401,47 @@ fn test_statement_bind_stream() {
     statement.bind_stream(Box::new(reader)).unwrap();
 }
 
+#[test]
+fn test_ingestion_roundtrip() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    let batch = sample_batch();
+
+    // Ingest
+    statement
+        .set_option(
+            "adbc.ingest.target_table",
+            OptionValue::String("my_table".into()),
+        )
+        .unwrap();
+
+    statement.bind(batch.clone()).unwrap();
+    statement.execute_update().unwrap();
+
+    // Read back
+    statement.set_sql_query("select * from my_table").unwrap();
+    let batch_got = concat_reader(statement.execute().unwrap());
+
+    assert_eq!(batch, batch_got);
+}
+
+fn sample_batch() -> RecordBatch {
+    let columns: Vec<Arc<dyn Array>> = vec![
+        Arc::new(Int64Array::from(vec![1, 2, 3, 4])),
+        Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0, 4.0])),
+        Arc::new(StringArray::from(vec!["a", "b", "c", "d"])),
+    ];
+    let schema = Schema::new(vec![
+        Field::new("a", DataType::Int64, true),
+        Field::new("b", DataType::Float64, true),
+        Field::new("c", DataType::Utf8, true),
+    ]);
+    RecordBatch::try_new(Arc::new(schema), columns).unwrap()
+}
+
 struct SingleBatchReader {
     batch: Option<RecordBatch>,
     schema: SchemaRef,
