@@ -1,6 +1,6 @@
-use std::ffi::NulError;
+use std::{ffi::NulError, fmt::Display};
 
-use arrow;
+use arrow::error::ArrowError;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Status {
@@ -32,8 +32,38 @@ pub struct Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-impl From<arrow::error::ArrowError> for Error {
-    fn from(value: arrow::error::ArrowError) -> Self {
+impl Error {
+    pub fn with_message_and_status(message: &str, status: Status) -> Self {
+        Self {
+            message: Some(message.into()),
+            status: Some(status),
+            vendor_code: 0,
+            sqlstate: [0; 5],
+            details: None,
+        }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {} (sqlstate: {:?}, vendor_code: {})",
+            self.status
+                .as_ref()
+                .map(|s| format!("{:?}", s))
+                .unwrap_or_default(),
+            self.message.as_ref().unwrap_or(&"".into()),
+            self.sqlstate,
+            self.vendor_code
+        )
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl From<ArrowError> for Error {
+    fn from(value: ArrowError) -> Self {
         Self {
             message: Some(value.to_string()),
             status: Some(Status::Internal),
@@ -58,17 +88,3 @@ impl From<NulError> for Error {
         }
     }
 }
-
-impl From<&str> for Error {
-    fn from(value: &str) -> Self {
-        Self {
-            message: Some(value.into()),
-            status: None,
-            vendor_code: 0,
-            sqlstate: [0; 5],
-            details: None,
-        }
-    }
-}
-
-// impl std::error::Error for Error {} // TODO

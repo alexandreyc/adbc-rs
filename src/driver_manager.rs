@@ -9,10 +9,16 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::{driver_method, ffi, Optionable};
 use crate::{
+    error::Status,
     options::{AdbcVersion, OptionValue},
     Error, Result,
 };
 use crate::{Connection, Database, Driver, Statement};
+
+const ERR_ONLY_STRING_OPT: &str = "Only string option value are supported with ADBC 1.0.0";
+const ERR_CANCEL_UNSUPPORTED: &str =
+    "Canceling connection or statement is not supported with ADBC 1.0.0";
+const ERR_STATISTICS_UNSUPPORTED: &str = "Statistics are not supported with ADBC 1.0.0";
 
 pub fn check_status(status: ffi::FFI_AdbcStatusCode, error: ffi::FFI_AdbcError) -> Result<()> {
     match status {
@@ -129,9 +135,10 @@ fn set_option_database(
             let method = driver_method!(driver, DatabaseSetOptionDouble);
             unsafe { method(database, key.as_ptr(), value, &mut error) }
         }
-        (AdbcVersion::V100, _) => {
-            return Err("Only string option value are supported with ADBC 1.0.0".into());
-        }
+        (AdbcVersion::V100, _) => Err(Error::with_message_and_status(
+            ERR_ONLY_STRING_OPT,
+            Status::NotImplemented,
+        ))?,
     };
     check_status(status, error)
 }
@@ -266,9 +273,10 @@ fn set_option_connection(
             let method = driver_method!(driver, ConnectionSetOptionDouble);
             unsafe { method(connection, key.as_ptr(), value, &mut error) }
         }
-        (AdbcVersion::V100, _) => {
-            return Err("Only string option value are supported with ADBC 1.0.0".into())
-        }
+        (AdbcVersion::V100, _) => Err(Error::with_message_and_status(
+            ERR_ONLY_STRING_OPT,
+            Status::NotImplemented,
+        ))?,
     };
     check_status(status, error)
 }
@@ -331,7 +339,10 @@ impl Connection for ManagedConnection {
 
     fn cancel(&mut self) -> Result<()> {
         if let AdbcVersion::V100 = self.version {
-            return Err("Canceling connection is not supported with ADBC 1.0.0".into());
+            return Err(Error::with_message_and_status(
+                ERR_CANCEL_UNSUPPORTED,
+                Status::NotImplemented,
+            ));
         }
 
         let mut error = ffi::FFI_AdbcError::default();
@@ -458,7 +469,10 @@ impl Connection for ManagedConnection {
         approximate: bool,
     ) -> Result<impl RecordBatchReader> {
         if let AdbcVersion::V100 = self.version {
-            return Err("Statistics are not supported with ADBC 1.0.0".into());
+            return Err(Error::with_message_and_status(
+                ERR_STATISTICS_UNSUPPORTED,
+                Status::NotImplemented,
+            ));
         }
 
         let catalog = catalog
@@ -498,7 +512,10 @@ impl Connection for ManagedConnection {
 
     fn get_statistics_name(&mut self) -> Result<impl RecordBatchReader> {
         if let AdbcVersion::V100 = self.version {
-            return Err("Statistics are not supported with ADBC 1.0.0".into());
+            return Err(Error::with_message_and_status(
+                ERR_STATISTICS_UNSUPPORTED,
+                Status::NotImplemented,
+            ));
         }
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
@@ -618,9 +635,10 @@ fn set_option_statement(
             let method = driver_method!(driver, StatementSetOptionDouble);
             unsafe { method(statement, key.as_ptr(), value, &mut error) }
         }
-        (AdbcVersion::V100, _) => {
-            return Err("Only string option value are supported with ADBC 1.0.0".into());
-        }
+        (AdbcVersion::V100, _) => Err(Error::with_message_and_status(
+            ERR_ONLY_STRING_OPT,
+            Status::NotImplemented,
+        ))?,
     };
     check_status(status, error)
 }
@@ -652,7 +670,10 @@ impl Statement for ManagedStatement {
 
     fn cancel(&mut self) -> Result<()> {
         if let AdbcVersion::V100 = self.version {
-            return Err("Canceling statement is not supported with ADBC 1.0.0".into());
+            return Err(Error::with_message_and_status(
+                ERR_CANCEL_UNSUPPORTED,
+                Status::NotImplemented,
+            ));
         }
 
         let mut error = ffi::FFI_AdbcError::default();

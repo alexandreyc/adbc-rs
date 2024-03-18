@@ -102,7 +102,7 @@ fn test_connection_cancel() {
     let mut connection = database.new_connection().unwrap();
 
     let error = connection.cancel().unwrap_err();
-    assert!(error.message.unwrap().contains("not supported")); // TODO: improve our error type
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
 #[test]
@@ -369,7 +369,7 @@ fn test_statement_cancel() {
     let mut statement = connection.new_statement().unwrap();
 
     let error = statement.cancel().unwrap_err();
-    assert!(error.message.unwrap().contains("not supported")); // TODO: improve our error type
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
 #[test]
@@ -474,4 +474,3 @@ impl RecordBatchReader for SingleBatchReader {
 // TODOs
 // - Test `get_option_*` (needs an 1.1.0 driver)
 // - Test non-string setting options (needs an 1.1.0 driver)
-// - Add E2E for ingestion
