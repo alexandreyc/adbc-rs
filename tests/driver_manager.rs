@@ -89,6 +89,16 @@ fn test_connection() {
 }
 
 #[test]
+fn test_connection_cancel() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+
+    let error = connection.cancel().unwrap_err();
+    assert!(error.message.unwrap().contains("not supported")); // TODO: improve our error type
+}
+
+#[test]
 fn test_connection_get_table_types() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();

@@ -331,7 +331,14 @@ impl Connection for ManagedConnection {
     }
 
     fn cancel(&mut self) -> Result<()> {
-        todo!()
+        if let AdbcVersion::V100 = self.version {
+            return Err("Canceling connection is not supported with ADBC 1.0.0".into());
+        }
+
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, ConnectionCancel);
+        let status = unsafe { method(&mut self.connection, &mut error) };
+        check_status(status, error)
     }
 
     fn commit(&mut self) -> Result<()> {
@@ -583,15 +590,14 @@ impl Statement for ManagedStatement {
     }
 
     fn cancel(&mut self) -> Result<()> {
-        match self.version {
-            AdbcVersion::V100 => Err("Canceling statement is not supported with ADBC 1.0.0".into()),
-            AdbcVersion::V110 => {
-                let mut error = ffi::FFI_AdbcError::default();
-                let method = crate::driver_method!(self.driver, StatementCancel);
-                let status = unsafe { method(&mut self.statement, &mut error) };
-                check_status(status, error)
-            }
+        if let AdbcVersion::V100 = self.version {
+            return Err("Canceling statement is not supported with ADBC 1.0.0".into());
         }
+
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, StatementCancel);
+        let status = unsafe { method(&mut self.statement, &mut error) };
+        check_status(status, error)
     }
 
     fn execute(&mut self) -> Result<impl RecordBatchReader> {
