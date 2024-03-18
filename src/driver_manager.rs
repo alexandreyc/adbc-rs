@@ -555,8 +555,22 @@ impl Connection for ManagedConnection {
         Ok(reader)
     }
 
-    fn read_partition(&mut self, partition: &[u8]) -> Result<ArrowArrayStreamReader> {
-        todo!()
+    fn read_partition(&mut self, partition: &[u8]) -> Result<impl RecordBatchReader> {
+        let mut error = ffi::FFI_AdbcError::default();
+        let mut stream = FFI_ArrowArrayStream::empty();
+        let method = crate::driver_method!(self.driver, ConnectionReadPartition);
+        let status = unsafe {
+            method(
+                &mut self.connection,
+                partition.as_ptr(),
+                partition.len(),
+                &mut stream,
+                &mut error,
+            )
+        };
+        check_status(status, error)?;
+        let reader = ArrowArrayStreamReader::try_new(stream)?;
+        Ok(reader)
     }
 }
 impl Drop for ManagedConnection {

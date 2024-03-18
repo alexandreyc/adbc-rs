@@ -124,6 +124,14 @@ fn test_connection_commit_rollback() {
 }
 
 #[test]
+fn test_connection_read_partition() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    assert!(connection.read_partition(b"").is_err());
+}
+
+#[test]
 fn test_connection_get_table_types() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
