@@ -2,6 +2,7 @@ use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
 
 use arrow::array::{Array, Int64Array};
+use arrow::compute::concat_batches;
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
@@ -46,6 +47,12 @@ fn get_driver() -> DriverManager {
         AdbcVersion::V100,
     )
     .unwrap()
+}
+
+fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
+    let schema = reader.schema();
+    let batches: Vec<RecordBatch> = reader.map(|b| b.unwrap()).collect();
+    concat_batches(&schema, &batches).unwrap()
 }
 
 #[test]
@@ -136,15 +143,9 @@ fn test_connection_get_table_types() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
-
-    let table_types: Vec<RecordBatch> = connection
-        .get_table_types()
-        .unwrap()
-        .map(|b| b.unwrap())
-        .collect();
-    assert_eq!(table_types.len(), 1);
-    assert_eq!(table_types[0].num_columns(), 1);
-    assert_eq!(table_types[0].num_rows(), 2);
+    let table_types = concat_reader(connection.get_table_types().unwrap());
+    assert_eq!(table_types.num_columns(), 1);
+    assert_eq!(table_types.num_rows(), 2);
 }
 
 #[test]
@@ -153,28 +154,22 @@ fn test_connection_get_info() {
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
 
-    let info: Vec<RecordBatch> = connection
-        .get_info(None)
-        .unwrap()
-        .map(|b| b.unwrap())
-        .collect();
-    assert_eq!(info.len(), 1);
-    assert_eq!(info[0].num_columns(), 2);
-    assert_eq!(info[0].num_rows(), 5);
+    let info = concat_reader(connection.get_info(None).unwrap());
+    assert_eq!(info.num_columns(), 2);
+    assert_eq!(info.num_rows(), 5);
 
-    let info: Vec<RecordBatch> = connection
-        .get_info(Some(&[
-            InfoCode::VendorName,
-            InfoCode::DriverVersion,
-            InfoCode::DriverName,
-            InfoCode::VendorVersion,
-        ]))
-        .unwrap()
-        .map(|b| b.unwrap())
-        .collect();
-    assert_eq!(info.len(), 1);
-    assert_eq!(info[0].num_columns(), 2);
-    assert_eq!(info[0].num_rows(), 4);
+    let info = concat_reader(
+        connection
+            .get_info(Some(&[
+                InfoCode::VendorName,
+                InfoCode::DriverVersion,
+                InfoCode::DriverName,
+                InfoCode::VendorVersion,
+            ]))
+            .unwrap(),
+    );
+    assert_eq!(info.num_columns(), 2);
+    assert_eq!(info.num_rows(), 4);
 }
 
 #[test]
@@ -183,46 +178,43 @@ fn test_connection_get_objects() {
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
 
-    let objects: Vec<RecordBatch> = connection
-        .get_objects(ObjectDepth::All, None, None, None, None, None)
-        .unwrap()
-        .map(|b| b.unwrap())
-        .collect();
-    assert_eq!(objects.len(), 1);
-    assert_eq!(objects[0].num_rows(), 1);
-    assert_eq!(objects[0].num_columns(), 2);
+    let objects = concat_reader(
+        connection
+            .get_objects(ObjectDepth::All, None, None, None, None, None)
+            .unwrap(),
+    );
+    assert_eq!(objects.num_rows(), 1);
+    assert_eq!(objects.num_columns(), 2);
 
-    let objects: Vec<RecordBatch> = connection
-        .get_objects(
-            ObjectDepth::All,
-            None,
-            None,
-            None,
-            Some(&["table", "view"]),
-            None,
-        )
-        .unwrap()
-        .map(|b| b.unwrap())
-        .collect();
-    assert_eq!(objects.len(), 1);
-    assert_eq!(objects[0].num_rows(), 1);
-    assert_eq!(objects[0].num_columns(), 2);
+    let objects = concat_reader(
+        connection
+            .get_objects(
+                ObjectDepth::All,
+                None,
+                None,
+                None,
+                Some(&["table", "view"]),
+                None,
+            )
+            .unwrap(),
+    );
+    assert_eq!(objects.num_rows(), 1);
+    assert_eq!(objects.num_columns(), 2);
 
-    let objects: Vec<RecordBatch> = connection
-        .get_objects(
-            ObjectDepth::All,
-            Some("my_catalog"),
-            Some("my_schema"),
-            Some("my_table"),
-            Some(&["table", "view"]),
-            Some("my_column"),
-        )
-        .unwrap()
-        .map(|b| b.unwrap())
-        .collect();
-    assert_eq!(objects.len(), 1);
-    assert_eq!(objects[0].num_rows(), 0);
-    assert_eq!(objects[0].num_columns(), 2);
+    let objects = concat_reader(
+        connection
+            .get_objects(
+                ObjectDepth::All,
+                Some("my_catalog"),
+                Some("my_schema"),
+                Some("my_table"),
+                Some(&["table", "view"]),
+                Some("my_column"),
+            )
+            .unwrap(),
+    );
+    assert_eq!(objects.num_rows(), 0);
+    assert_eq!(objects.num_columns(), 2);
 }
 
 #[test]
@@ -317,10 +309,9 @@ fn test_statement_execute() {
     assert!(statement.execute().is_err());
 
     statement.set_sql_query("select 42").unwrap();
-    let batches: Vec<RecordBatch> = statement.execute().unwrap().map(|b| b.unwrap()).collect();
-    assert_eq!(batches.len(), 1);
-    assert_eq!(batches[0].num_rows(), 1);
-    assert_eq!(batches[0].num_columns(), 1);
+    let batch = concat_reader(statement.execute().unwrap());
+    assert_eq!(batch.num_rows(), 1);
+    assert_eq!(batch.num_columns(), 1);
 }
 
 #[test]
@@ -422,3 +413,4 @@ impl RecordBatchReader for SingleBatchReader {
 
 // TODOs
 // - Test `get_option_*`
+// - Add E2E for ingestion
