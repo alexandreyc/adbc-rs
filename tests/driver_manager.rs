@@ -1,7 +1,7 @@
 use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
 
-use arrow::array::{Array, Int64Array};
+use arrow::array::{Array, BooleanArray, Float64Array, Int64Array, StringArray};
 use arrow::compute::concat_batches;
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
@@ -255,6 +255,25 @@ fn test_connection_get_statistics() {
 }
 
 #[test]
+fn test_statement() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    statement
+        .set_option(
+            "adbc.ingest.mode", // TODO: use proper enum
+            OptionValue::String("adbc.ingest.mode.create".into()),
+        )
+        .unwrap();
+
+    statement
+        .set_option("unknown.key", OptionValue::String("unknown.value".into()))
+        .unwrap_err();
+}
+
+#[test]
 fn test_statement_prepare() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
@@ -412,5 +431,6 @@ impl RecordBatchReader for SingleBatchReader {
 }
 
 // TODOs
-// - Test `get_option_*`
+// - Test `get_option_*` (needs an 1.1.0 driver)
+// - Test non-string setting options (needs an 1.1.0 driver)
 // - Add E2E for ingestion

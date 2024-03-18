@@ -583,6 +583,48 @@ impl Drop for ManagedConnection {
     }
 }
 
+fn set_option_statement(
+    driver: Rc<ffi::FFI_AdbcDriver>,
+    version: AdbcVersion,
+    statement: &mut ffi::FFI_AdbcStatement,
+    key: impl AsRef<str>,
+    value: OptionValue,
+) -> Result<()> {
+    let key = CString::new(key.as_ref())?;
+    let mut error = ffi::FFI_AdbcError::default();
+    let status = match (version, value) {
+        (_, OptionValue::String(value)) => {
+            let value = CString::new(value)?;
+            let method = driver_method!(driver, StatementSetOption);
+            unsafe { method(statement, key.as_ptr(), value.as_ptr(), &mut error) }
+        }
+        (AdbcVersion::V110, OptionValue::Bytes(value)) => {
+            let method = driver_method!(driver, StatementSetOptionBytes);
+            unsafe {
+                method(
+                    statement,
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    value.len(),
+                    &mut error,
+                )
+            }
+        }
+        (AdbcVersion::V110, OptionValue::Int(value)) => {
+            let method = driver_method!(driver, StatementSetOptionInt);
+            unsafe { method(statement, key.as_ptr(), value, &mut error) }
+        }
+        (AdbcVersion::V110, OptionValue::Double(value)) => {
+            let method = driver_method!(driver, StatementSetOptionDouble);
+            unsafe { method(statement, key.as_ptr(), value, &mut error) }
+        }
+        (AdbcVersion::V100, _) => {
+            return Err("Only string option value are supported with ADBC 1.0.0".into());
+        }
+    };
+    check_status(status, error)
+}
+
 pub struct ManagedStatement {
     driver: Rc<ffi::FFI_AdbcDriver>,
     statement: ffi::FFI_AdbcStatement,
@@ -686,6 +728,41 @@ impl Statement for ManagedStatement {
         let status = unsafe { method(&mut self.statement, plan.as_ptr(), plan.len(), &mut error) };
         check_status(status, error)?;
         Ok(())
+    }
+}
+impl Optionable for ManagedStatement {
+    fn get_option_bytes(&mut self, key: impl AsRef<str>) -> Result<Vec<u8>> {
+        todo!()
+    }
+    fn get_option_double(&mut self, key: impl AsRef<str>) -> Result<f64> {
+        let key = CString::new(key.as_ref())?;
+        let mut error = ffi::FFI_AdbcError::default();
+        let mut value: f64 = 0.0;
+        let method = driver_method!(self.driver, StatementGetOptionDouble);
+        let status = unsafe { method(&mut self.statement, key.as_ptr(), &mut value, &mut error) };
+        check_status(status, error)?;
+        Ok(value)
+    }
+    fn get_option_int(&mut self, key: impl AsRef<str>) -> Result<i64> {
+        let key = CString::new(key.as_ref())?;
+        let mut error = ffi::FFI_AdbcError::default();
+        let mut value: i64 = 0;
+        let method = driver_method!(self.driver, StatementGetOptionInt);
+        let status = unsafe { method(&mut self.statement, key.as_ptr(), &mut value, &mut error) };
+        check_status(status, error)?;
+        Ok(value)
+    }
+    fn get_option_string(&mut self, key: impl AsRef<str>) -> Result<String> {
+        todo!()
+    }
+    fn set_option(&mut self, key: impl AsRef<str>, value: OptionValue) -> Result<()> {
+        set_option_statement(
+            self.driver.clone(),
+            self.version,
+            &mut self.statement,
+            key,
+            value,
+        )
     }
 }
 impl Drop for ManagedStatement {

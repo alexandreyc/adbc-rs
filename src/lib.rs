@@ -88,7 +88,7 @@ pub trait Connection: Optionable {
     fn read_partition(&mut self, partition: &[u8]) -> Result<impl RecordBatchReader>;
 }
 
-pub trait Statement {
+pub trait Statement: Optionable {
     fn bind(&mut self, batch: RecordBatch) -> Result<()>;
     fn bind_stream(&mut self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()>;
     fn execute(&mut self) -> Result<impl RecordBatchReader>;
