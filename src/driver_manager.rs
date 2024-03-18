@@ -7,7 +7,6 @@ use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
 use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
-use crate::ffi::FFI_AdbcStatement;
 use crate::{driver_method, ffi, Optionable};
 use crate::{
     options::{AdbcVersion, OptionValue},
@@ -72,7 +71,7 @@ impl Driver for DriverManager {
 
         // DatabaseNew
         let mut error = ffi::FFI_AdbcError::default();
-        let database_new = crate::driver_method!(self.driver, DatabaseNew);
+        let database_new = driver_method!(self.driver, DatabaseNew);
         let status = unsafe { database_new(&mut database, &mut error) };
         check_status(status, error)?;
 
@@ -83,7 +82,7 @@ impl Driver for DriverManager {
 
         // DatabaseInit
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, DatabaseInit);
+        let method = driver_method!(self.driver, DatabaseInit);
         let status = unsafe { method(&mut database, &mut error) };
         check_status(status, error)?;
 
@@ -107,11 +106,11 @@ fn set_option_database(
     let status = match (version, value) {
         (_, OptionValue::String(value)) => {
             let value = CString::new(value)?;
-            let method = crate::driver_method!(driver, DatabaseSetOption);
+            let method = driver_method!(driver, DatabaseSetOption);
             unsafe { method(database, key.as_ptr(), value.as_ptr(), &mut error) }
         }
         (AdbcVersion::V110, OptionValue::Bytes(value)) => {
-            let method = crate::driver_method!(driver, DatabaseSetOptionBytes);
+            let method = driver_method!(driver, DatabaseSetOptionBytes);
             unsafe {
                 method(
                     database,
@@ -123,11 +122,11 @@ fn set_option_database(
             }
         }
         (AdbcVersion::V110, OptionValue::Int(value)) => {
-            let method = crate::driver_method!(driver, DatabaseSetOptionInt);
+            let method = driver_method!(driver, DatabaseSetOptionInt);
             unsafe { method(database, key.as_ptr(), value, &mut error) }
         }
         (AdbcVersion::V110, OptionValue::Double(value)) => {
-            let method = crate::driver_method!(driver, DatabaseSetOptionDouble);
+            let method = driver_method!(driver, DatabaseSetOptionDouble);
             unsafe { method(database, key.as_ptr(), value, &mut error) }
         }
         (AdbcVersion::V100, _) => {
@@ -150,7 +149,7 @@ impl Optionable for ManagedDatabase {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
-        let method = crate::driver_method!(self.driver, DatabaseGetOptionDouble);
+        let method = driver_method!(self.driver, DatabaseGetOptionDouble);
         let status = unsafe { method(&mut self.database, key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
@@ -159,7 +158,7 @@ impl Optionable for ManagedDatabase {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
-        let method = crate::driver_method!(self.driver, DatabaseGetOptionInt);
+        let method = driver_method!(self.driver, DatabaseGetOptionInt);
         let status = unsafe { method(&mut self.database, key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
@@ -193,7 +192,7 @@ impl Database for ManagedDatabase {
 
         // ConnectioNew
         let mut error = ffi::FFI_AdbcError::default();
-        let connection_new = crate::driver_method!(self.driver, ConnectionNew);
+        let connection_new = driver_method!(self.driver, ConnectionNew);
         let status = unsafe { connection_new(&mut connection, &mut error) };
         check_status(status, error)?;
 
@@ -210,7 +209,7 @@ impl Database for ManagedDatabase {
 
         // ConnectionInit
         let mut error = ffi::FFI_AdbcError::default();
-        let connection_init = crate::driver_method!(self.driver, ConnectionInit);
+        let connection_init = driver_method!(self.driver, ConnectionInit);
         let status = unsafe { connection_init(&mut connection, &mut self.database, &mut error) };
         check_status(status, error)?;
 
@@ -244,11 +243,11 @@ fn set_option_connection(
     let status = match (version, value) {
         (_, OptionValue::String(value)) => {
             let value = CString::new(value)?;
-            let method = crate::driver_method!(driver, ConnectionSetOption);
+            let method = driver_method!(driver, ConnectionSetOption);
             unsafe { method(connection, key.as_ptr(), value.as_ptr(), &mut error) }
         }
         (AdbcVersion::V110, OptionValue::Bytes(value)) => {
-            let method = crate::driver_method!(driver, ConnectionSetOptionBytes);
+            let method = driver_method!(driver, ConnectionSetOptionBytes);
             unsafe {
                 method(
                     connection,
@@ -260,11 +259,11 @@ fn set_option_connection(
             }
         }
         (AdbcVersion::V110, OptionValue::Int(value)) => {
-            let method = crate::driver_method!(driver, ConnectionSetOptionInt);
+            let method = driver_method!(driver, ConnectionSetOptionInt);
             unsafe { method(connection, key.as_ptr(), value, &mut error) }
         }
         (AdbcVersion::V110, OptionValue::Double(value)) => {
-            let method = crate::driver_method!(driver, ConnectionSetOptionDouble);
+            let method = driver_method!(driver, ConnectionSetOptionDouble);
             unsafe { method(connection, key.as_ptr(), value, &mut error) }
         }
         (AdbcVersion::V100, _) => {
@@ -276,8 +275,8 @@ fn set_option_connection(
 
 pub struct ManagedConnection {
     driver: Rc<ffi::FFI_AdbcDriver>,
-    version: AdbcVersion,
     connection: ffi::FFI_AdbcConnection,
+    version: AdbcVersion,
 }
 impl Optionable for ManagedConnection {
     fn get_option_bytes(&mut self, key: impl AsRef<str>) -> Result<Vec<u8>> {
@@ -287,7 +286,7 @@ impl Optionable for ManagedConnection {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
-        let method = crate::driver_method!(self.driver, ConnectionGetOptionDouble);
+        let method = driver_method!(self.driver, ConnectionGetOptionDouble);
         let status = unsafe { method(&mut self.connection, key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
@@ -296,7 +295,7 @@ impl Optionable for ManagedConnection {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
-        let method = crate::driver_method!(self.driver, ConnectionGetOptionInt);
+        let method = driver_method!(self.driver, ConnectionGetOptionInt);
         let status = unsafe { method(&mut self.connection, key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
@@ -320,7 +319,7 @@ impl Connection for ManagedConnection {
     fn new_statement(&mut self) -> Result<Self::StatementType> {
         let mut statement = ffi::FFI_AdbcStatement::default();
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementNew);
+        let method = driver_method!(self.driver, StatementNew);
         let status = unsafe { method(&mut self.connection, &mut statement, &mut error) };
         check_status(status, error)?;
         Ok(Self::StatementType {
@@ -336,21 +335,21 @@ impl Connection for ManagedConnection {
         }
 
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, ConnectionCancel);
+        let method = driver_method!(self.driver, ConnectionCancel);
         let status = unsafe { method(&mut self.connection, &mut error) };
         check_status(status, error)
     }
 
     fn commit(&mut self) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, ConnectionCommit);
+        let method = driver_method!(self.driver, ConnectionCommit);
         let status = unsafe { method(&mut self.connection, &mut error) };
         check_status(status, error)
     }
 
     fn rollback(&mut self) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, ConnectionRollback);
+        let method = driver_method!(self.driver, ConnectionRollback);
         let status = unsafe { method(&mut self.connection, &mut error) };
         check_status(status, error)
     }
@@ -367,7 +366,7 @@ impl Connection for ManagedConnection {
             .as_ref()
             .map(|c| (c.as_ptr(), c.len()))
             .unwrap_or((null(), 0));
-        let method = crate::driver_method!(self.driver, ConnectionGetInfo);
+        let method = driver_method!(self.driver, ConnectionGetInfo);
         let status = unsafe {
             method(
                 &mut self.connection,
@@ -429,7 +428,7 @@ impl Connection for ManagedConnection {
             .unwrap_or(null());
 
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, ConnectionGetObjects);
+        let method = driver_method!(self.driver, ConnectionGetObjects);
         let mut stream = FFI_ArrowArrayStream::empty();
 
         let status = unsafe {
@@ -480,7 +479,7 @@ impl Connection for ManagedConnection {
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let method = crate::driver_method!(self.driver, ConnectionGetStatistics);
+        let method = driver_method!(self.driver, ConnectionGetStatistics);
         let status = unsafe {
             method(
                 &mut self.connection,
@@ -503,7 +502,7 @@ impl Connection for ManagedConnection {
         }
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let method = crate::driver_method!(self.driver, ConnectionGetStatisticNames);
+        let method = driver_method!(self.driver, ConnectionGetStatisticNames);
         let status = unsafe { method(&mut self.connection, &mut stream, &mut error) };
         check_status(status, error)?;
         let reader = ArrowArrayStreamReader::try_new(stream)?;
@@ -530,7 +529,7 @@ impl Connection for ManagedConnection {
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut schema = FFI_ArrowSchema::empty();
-        let method = crate::driver_method!(self.driver, ConnectionGetTableSchema);
+        let method = driver_method!(self.driver, ConnectionGetTableSchema);
         let status = unsafe {
             method(
                 &mut self.connection,
@@ -548,7 +547,7 @@ impl Connection for ManagedConnection {
     fn get_table_types(&mut self) -> Result<impl RecordBatchReader> {
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let get_table_types = crate::driver_method!(self.driver, ConnectionGetTableTypes);
+        let get_table_types = driver_method!(self.driver, ConnectionGetTableTypes);
         let status = unsafe { get_table_types(&mut self.connection, &mut stream, &mut error) };
         check_status(status, error)?;
         let reader = ArrowArrayStreamReader::try_new(stream)?;
@@ -558,7 +557,7 @@ impl Connection for ManagedConnection {
     fn read_partition(&mut self, partition: &[u8]) -> Result<impl RecordBatchReader> {
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let method = crate::driver_method!(self.driver, ConnectionReadPartition);
+        let method = driver_method!(self.driver, ConnectionReadPartition);
         let status = unsafe {
             method(
                 &mut self.connection,
@@ -586,13 +585,13 @@ impl Drop for ManagedConnection {
 
 pub struct ManagedStatement {
     driver: Rc<ffi::FFI_AdbcDriver>,
-    statement: FFI_AdbcStatement,
+    statement: ffi::FFI_AdbcStatement,
     version: AdbcVersion,
 }
 impl Statement for ManagedStatement {
     fn bind(&mut self, batch: RecordBatch) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementBind);
+        let method = driver_method!(self.driver, StatementBind);
         let batch: StructArray = batch.into();
         let (mut array, mut schema) = to_ffi(&batch.to_data())?;
         let status = unsafe { method(&mut self.statement, &mut array, &mut schema, &mut error) };
@@ -602,7 +601,7 @@ impl Statement for ManagedStatement {
 
     fn bind_stream(&mut self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementBindStream);
+        let method = driver_method!(self.driver, StatementBindStream);
         let mut stream = FFI_ArrowArrayStream::new(reader);
         let status = unsafe { method(&mut self.statement, &mut stream, &mut error) };
         check_status(status, error)?;
@@ -615,14 +614,14 @@ impl Statement for ManagedStatement {
         }
 
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementCancel);
+        let method = driver_method!(self.driver, StatementCancel);
         let status = unsafe { method(&mut self.statement, &mut error) };
         check_status(status, error)
     }
 
     fn execute(&mut self) -> Result<impl RecordBatchReader> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementExecuteQuery);
+        let method = driver_method!(self.driver, StatementExecuteQuery);
         let mut stream = FFI_ArrowArrayStream::empty();
         let status = unsafe { method(&mut self.statement, &mut stream, null_mut(), &mut error) };
         check_status(status, error)?;
@@ -632,7 +631,7 @@ impl Statement for ManagedStatement {
 
     fn execute_schema(&mut self) -> Result<arrow::datatypes::Schema> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementExecuteSchema);
+        let method = driver_method!(self.driver, StatementExecuteSchema);
         let mut schema = FFI_ArrowSchema::empty();
         let status = unsafe { method(&mut self.statement, &mut schema, &mut error) };
         check_status(status, error)?;
@@ -641,7 +640,7 @@ impl Statement for ManagedStatement {
 
     fn execute_update(&mut self) -> Result<i64> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementExecuteQuery);
+        let method = driver_method!(self.driver, StatementExecuteQuery);
         let mut rows_affected: i64 = -1;
         let status = unsafe {
             method(
@@ -657,7 +656,7 @@ impl Statement for ManagedStatement {
 
     fn get_parameters_schema(&mut self) -> Result<arrow::datatypes::Schema> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementGetParameterSchema);
+        let method = driver_method!(self.driver, StatementGetParameterSchema);
         let mut schema = FFI_ArrowSchema::empty();
         let status = unsafe { method(&mut self.statement, &mut schema, &mut error) };
         check_status(status, error)?;
@@ -666,7 +665,7 @@ impl Statement for ManagedStatement {
 
     fn prepare(&mut self) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementPrepare);
+        let method = driver_method!(self.driver, StatementPrepare);
         let status = unsafe { method(&mut self.statement, &mut error) };
         check_status(status, error)?;
         Ok(())
@@ -675,7 +674,7 @@ impl Statement for ManagedStatement {
     fn set_sql_query(&mut self, query: &str) -> Result<()> {
         let query = CString::new(query)?;
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementSetSqlQuery);
+        let method = driver_method!(self.driver, StatementSetSqlQuery);
         let status = unsafe { method(&mut self.statement, query.as_ptr(), &mut error) };
         check_status(status, error)?;
         Ok(())
@@ -683,7 +682,7 @@ impl Statement for ManagedStatement {
 
     fn set_substrait_plan(&mut self, plan: &[u8]) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let method = crate::driver_method!(self.driver, StatementSetSubstraitPlan);
+        let method = driver_method!(self.driver, StatementSetSubstraitPlan);
         let status = unsafe { method(&mut self.statement, plan.as_ptr(), plan.len(), &mut error) };
         check_status(status, error)?;
         Ok(())
