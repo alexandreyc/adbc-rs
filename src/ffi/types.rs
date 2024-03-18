@@ -1,12 +1,12 @@
 #![allow(non_camel_case_types, non_snake_case)]
 
-use crate::driver_manager::check_status;
-use crate::{error, ffi};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
 
 use super::methods;
+use crate::driver_manager::check_status;
+use crate::{error, ffi, Partitions};
 
 pub type FFI_AdbcStatusCode = u8;
 
@@ -199,6 +199,21 @@ impl From<FFI_AdbcStatusCode> for error::Status {
     }
 }
 
+impl From<FFI_AdbcPartitions> for Partitions {
+    fn from(value: FFI_AdbcPartitions) -> Self {
+        let mut partitions = Vec::with_capacity(value.num_partitions);
+        for p in 0..value.num_partitions {
+            let partition = unsafe {
+                let ptr = (*value.partitions).add(p);
+                let len = *value.partition_lengths.add(p);
+                std::slice::from_raw_parts(ptr, len)
+            };
+            partitions.push(partition.to_vec());
+        }
+        partitions
+    }
+}
+
 impl Default for FFI_AdbcDriver {
     fn default() -> Self {
         Self {
@@ -314,6 +329,18 @@ impl Default for FFI_AdbcStatement {
         Self {
             private_data: null(),
             private_driver: null(),
+        }
+    }
+}
+
+impl Default for FFI_AdbcPartitions {
+    fn default() -> Self {
+        Self {
+            num_partitions: 0,
+            partitions: null(),
+            partition_lengths: null(),
+            private_data: null_mut(),
+            release: None,
         }
     }
 }

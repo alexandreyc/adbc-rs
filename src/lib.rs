@@ -94,10 +94,12 @@ pub trait Statement: Optionable {
     fn execute(&mut self) -> Result<impl RecordBatchReader>;
     fn execute_update(&mut self) -> Result<i64>;
     fn execute_schema(&mut self) -> Result<Schema>;
-    // fn execute_partitions(&mut self) -> Result<PartitionedResult>; // TODO
+    fn execute_partitions(&mut self) -> Result<Partitions>;
     fn get_parameters_schema(&mut self) -> Result<Schema>;
     fn prepare(&mut self) -> Result<()>;
     fn set_sql_query(&mut self, query: &str) -> Result<()>;
     fn set_substrait_plan(&mut self, plan: &[u8]) -> Result<()>;
     fn cancel(&mut self) -> Result<()>;
 }
+
+type Partitions = Vec<Vec<u8>>;

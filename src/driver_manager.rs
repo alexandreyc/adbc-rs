@@ -7,6 +7,7 @@ use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
 use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
+use crate::ffi::FFI_AdbcPartitions;
 use crate::{driver_method, ffi, Optionable};
 use crate::{
     error::Status,
@@ -715,6 +716,25 @@ impl Statement for ManagedStatement {
         };
         check_status(status, error)?;
         Ok(rows_affected)
+    }
+
+    fn execute_partitions(&mut self) -> Result<crate::Partitions> {
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = driver_method!(self.driver, StatementExecutePartitions);
+        let mut schema = FFI_ArrowSchema::empty();
+        let mut partitions = FFI_AdbcPartitions::default();
+        let mut rows_affected: i64 = -1;
+        let status = unsafe {
+            method(
+                &mut self.statement,
+                &mut schema,
+                &mut partitions,
+                &mut rows_affected,
+                &mut error,
+            )
+        };
+        check_status(status, error)?;
+        Ok(partitions.into())
     }
 
     fn get_parameters_schema(&mut self) -> Result<arrow::datatypes::Schema> {

@@ -1,7 +1,7 @@
 use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
 
-use arrow::array::{Array, BooleanArray, Float64Array, Int64Array, StringArray};
+use arrow::array::{Array, Float64Array, Int64Array, StringArray};
 use arrow::compute::concat_batches;
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
@@ -358,6 +358,17 @@ fn test_statement_execute_schema() {
     let mut statement = connection.new_statement().unwrap();
 
     let error = statement.execute_schema().unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+}
+
+#[test]
+fn test_statement_execute_partitions() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    let error = statement.execute_partitions().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
