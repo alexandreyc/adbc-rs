@@ -342,11 +342,17 @@ impl Connection for ManagedConnection {
     }
 
     fn commit(&mut self) -> Result<()> {
-        todo!()
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, ConnectionCommit);
+        let status = unsafe { method(&mut self.connection, &mut error) };
+        check_status(status, error)
     }
 
     fn rollback(&mut self) -> Result<()> {
-        todo!()
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = crate::driver_method!(self.driver, ConnectionRollback);
+        let status = unsafe { method(&mut self.connection, &mut error) };
+        check_status(status, error)
     }
 
     fn get_info(

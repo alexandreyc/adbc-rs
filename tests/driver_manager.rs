@@ -75,7 +75,7 @@ fn test_connection() {
 
     assert!(connection
         .set_option(
-            "adbc.connection.autocommit",
+            "adbc.connection.autocommit", // TODO: use proper enum
             OptionValue::String("true".into())
         )
         .is_ok());
@@ -96,6 +96,31 @@ fn test_connection_cancel() {
 
     let error = connection.cancel().unwrap_err();
     assert!(error.message.unwrap().contains("not supported")); // TODO: improve our error type
+}
+
+#[test]
+fn test_connection_commit_rollback() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+
+    let error = connection.commit().unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::InvalidState);
+
+    let error = connection.rollback().unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::InvalidState);
+
+    connection
+        .set_option(
+            "adbc.connection.autocommit", // TODO: use proper enum
+            OptionValue::String("false".into()),
+        )
+        .unwrap();
+
+    connection.commit().unwrap();
+    connection.rollback().unwrap();
+
+    // TODO: implement a more involved test?
 }
 
 #[test]
