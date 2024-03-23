@@ -11,7 +11,7 @@ use crate::ffi::FFI_AdbcPartitions;
 use crate::{driver_method, ffi, Optionable};
 use crate::{
     error::Status,
-    options::{AdbcVersion, OptionValue},
+    options::{self, AdbcVersion, OptionValue},
     Error, Result,
 };
 use crate::{Connection, Database, Driver, Statement};
@@ -150,10 +150,11 @@ pub struct ManagedDatabase {
     database: ffi::FFI_AdbcDatabase,
 }
 impl Optionable for ManagedDatabase {
-    fn get_option_bytes(&mut self, key: impl AsRef<str>) -> Result<Vec<u8>> {
+    type Key = options::DatabaseOptionKey;
+    fn get_option_bytes(&mut self, key: &Self::Key) -> Result<Vec<u8>> {
         todo!()
     }
-    fn get_option_double(&mut self, key: impl AsRef<str>) -> Result<f64> {
+    fn get_option_double(&mut self, key: &Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
@@ -162,7 +163,7 @@ impl Optionable for ManagedDatabase {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_int(&mut self, key: impl AsRef<str>) -> Result<i64> {
+    fn get_option_int(&mut self, key: &Self::Key) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
@@ -171,10 +172,10 @@ impl Optionable for ManagedDatabase {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_string(&mut self, key: impl AsRef<str>) -> Result<String> {
+    fn get_option_string(&mut self, key: &Self::Key) -> Result<String> {
         todo!()
     }
-    fn set_option(&mut self, key: impl AsRef<str>, value: OptionValue) -> Result<()> {
+    fn set_option(&mut self, key: &Self::Key, value: OptionValue) -> Result<()> {
         set_option_database(
             self.driver.clone(),
             self.version,
@@ -288,10 +289,11 @@ pub struct ManagedConnection {
     version: AdbcVersion,
 }
 impl Optionable for ManagedConnection {
-    fn get_option_bytes(&mut self, key: impl AsRef<str>) -> Result<Vec<u8>> {
+    type Key = options::ConnectionOptionKey;
+    fn get_option_bytes(&mut self, key: &Self::Key) -> Result<Vec<u8>> {
         todo!()
     }
-    fn get_option_double(&mut self, key: impl AsRef<str>) -> Result<f64> {
+    fn get_option_double(&mut self, key: &Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
@@ -300,7 +302,7 @@ impl Optionable for ManagedConnection {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_int(&mut self, key: impl AsRef<str>) -> Result<i64> {
+    fn get_option_int(&mut self, key: &Self::Key) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
@@ -309,10 +311,10 @@ impl Optionable for ManagedConnection {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_string(&mut self, key: impl AsRef<str>) -> Result<String> {
+    fn get_option_string(&mut self, key: &Self::Key) -> Result<String> {
         todo!()
     }
-    fn set_option(&mut self, key: impl AsRef<str>, value: OptionValue) -> Result<()> {
+    fn set_option(&mut self, key: &Self::Key, value: OptionValue) -> Result<()> {
         set_option_connection(
             self.driver.clone(),
             self.version,
@@ -772,10 +774,11 @@ impl Statement for ManagedStatement {
     }
 }
 impl Optionable for ManagedStatement {
-    fn get_option_bytes(&mut self, key: impl AsRef<str>) -> Result<Vec<u8>> {
+    type Key = options::StatementOptionKey;
+    fn get_option_bytes(&mut self, key: &Self::Key) -> Result<Vec<u8>> {
         todo!()
     }
-    fn get_option_double(&mut self, key: impl AsRef<str>) -> Result<f64> {
+    fn get_option_double(&mut self, key: &Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
@@ -784,7 +787,7 @@ impl Optionable for ManagedStatement {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_int(&mut self, key: impl AsRef<str>) -> Result<i64> {
+    fn get_option_int(&mut self, key: &Self::Key) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
@@ -793,10 +796,10 @@ impl Optionable for ManagedStatement {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_string(&mut self, key: impl AsRef<str>) -> Result<String> {
+    fn get_option_string(&mut self, key: &Self::Key) -> Result<String> {
         todo!()
     }
-    fn set_option(&mut self, key: impl AsRef<str>, value: OptionValue) -> Result<()> {
+    fn set_option(&mut self, key: &Self::Key, value: OptionValue) -> Result<()> {
         set_option_statement(
             self.driver.clone(),
             self.version,

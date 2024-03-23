@@ -9,20 +9,22 @@ use arrow::record_batch::{RecordBatch, RecordBatchReader};
 use error::{Error, Result};
 
 pub trait Optionable {
+    type Key: AsRef<str>;
+
     /// Sets a post-init database option.
-    fn set_option(&mut self, key: impl AsRef<str>, value: options::OptionValue) -> Result<()>;
+    fn set_option(&mut self, key: &Self::Key, value: options::OptionValue) -> Result<()>;
 
     /// Gets a database option value by key.
-    fn get_option_string(&mut self, key: impl AsRef<str>) -> Result<String>;
+    fn get_option_string(&mut self, key: &Self::Key) -> Result<String>;
 
     /// Gets a database option value by key.
-    fn get_option_bytes(&mut self, key: impl AsRef<str>) -> Result<Vec<u8>>;
+    fn get_option_bytes(&mut self, key: &Self::Key) -> Result<Vec<u8>>;
 
     /// Gets a database option value by key.
-    fn get_option_int(&mut self, key: impl AsRef<str>) -> Result<i64>;
+    fn get_option_int(&mut self, key: &Self::Key) -> Result<i64>;
 
     /// Gets a database option value by key.
-    fn get_option_double(&mut self, key: impl AsRef<str>) -> Result<f64>;
+    fn get_option_double(&mut self, key: &Self::Key) -> Result<f64>;
 }
 
 pub trait Driver {

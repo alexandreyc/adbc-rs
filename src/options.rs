@@ -14,6 +14,15 @@ pub enum AdbcVersion {
     V110,
 }
 
+impl From<AdbcVersion> for i32 {
+    fn from(value: AdbcVersion) -> Self {
+        match value {
+            AdbcVersion::V100 => constants::ADBC_VERSION_1_0_0,
+            AdbcVersion::V110 => constants::ADBC_VERSION_1_1_0,
+        }
+    }
+}
+
 pub enum InfoCode {
     VendorName,
     VendorVersion,
@@ -54,6 +63,126 @@ impl From<ObjectDepth> for c_int {
             ObjectDepth::Schemas => constants::ADBC_OBJECT_DEPTH_DB_SCHEMAS,
             ObjectDepth::Tables => constants::ADBC_OBJECT_DEPTH_TABLES,
             ObjectDepth::Columns => constants::ADBC_OBJECT_DEPTH_COLUMNS,
+        }
+    }
+}
+
+pub enum DatabaseOptionKey {
+    Uri,
+    Username,
+    Password,
+    Other(String),
+}
+
+impl AsRef<str> for DatabaseOptionKey {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Uri => constants::ADBC_OPTION_URI,
+            Self::Username => constants::ADBC_OPTION_USERNAME,
+            Self::Password => constants::ADBC_OPTION_PASSWORD,
+            Self::Other(key) => &key,
+        }
+    }
+}
+
+pub enum ConnectionOptionKey {
+    AutoCommit,
+    ReadOnly,
+    CurrentCatalog,
+    CurrentSchema,
+    IsolationLevel,
+    Other(String),
+}
+
+impl AsRef<str> for ConnectionOptionKey {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::AutoCommit => constants::ADBC_CONNECTION_OPTION_AUTOCOMMIT,
+            Self::ReadOnly => constants::ADBC_CONNECTION_OPTION_READ_ONLY,
+            Self::CurrentCatalog => constants::ADBC_CONNECTION_OPTION_CURRENT_CATALOG,
+            Self::CurrentSchema => constants::ADBC_CONNECTION_OPTION_CURRENT_DB_SCHEMA,
+            Self::IsolationLevel => constants::ADBC_CONNECTION_OPTION_ISOLATION_LEVEL,
+            Self::Other(key) => &key,
+        }
+    }
+}
+
+pub enum StatementOptionKey {
+    IngestMode,
+    TargetTable,
+    Incremental,
+    Progress,
+    MaxProgress,
+    Other(String),
+}
+
+impl AsRef<str> for StatementOptionKey {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::IngestMode => constants::ADBC_INGEST_OPTION_MODE,
+            Self::TargetTable => constants::ADBC_INGEST_OPTION_TARGET_TABLE,
+            Self::Incremental => constants::ADBC_STATEMENT_OPTION_INCREMENTAL,
+            Self::Progress => constants::ADBC_STATEMENT_OPTION_PROGRESS,
+            Self::MaxProgress => constants::ADBC_STATEMENT_OPTION_MAX_PROGRESS,
+            Self::Other(key) => &key,
+        }
+    }
+}
+
+pub enum IsolationLevel {
+    Default,
+    ReadUncommitted,
+    ReadCommitted,
+    RepeatableRead,
+    Snapshot,
+    Serializable,
+    Linearizable,
+}
+
+impl From<IsolationLevel> for OptionValue {
+    fn from(value: IsolationLevel) -> Self {
+        match value {
+            IsolationLevel::Default => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_DEFAULT.into())
+            }
+            IsolationLevel::ReadUncommitted => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_READ_UNCOMMITTED.into())
+            }
+            IsolationLevel::ReadCommitted => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_READ_COMMITTED.into())
+            }
+            IsolationLevel::RepeatableRead => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_REPEATABLE_READ.into())
+            }
+            IsolationLevel::Snapshot => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_SNAPSHOT.into())
+            }
+            IsolationLevel::Serializable => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_SERIALIZABLE.into())
+            }
+            IsolationLevel::Linearizable => {
+                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_LINEARIZABLE.into())
+            }
+        }
+    }
+}
+
+pub enum IngestMode {
+    Create,
+    Append,
+    Replace,
+    CreateAppend,
+}
+
+impl From<IngestMode> for OptionValue {
+    fn from(value: IngestMode) -> Self {
+        match value {
+            IngestMode::Create => Self::String(constants::ADBC_INGEST_OPTION_MODE_CREATE.into()),
+            IngestMode::Append => Self::String(constants::ADBC_INGEST_OPTION_MODE_APPEND.into()),
+            IngestMode::Replace => Self::String(constants::ADBC_INGEST_OPTION_MODE_REPLACE.into()),
+            IngestMode::CreateAppend => {
+                Self::String(constants::ADBC_INGEST_OPTION_MODE_CREATE_APPEND.into())
+            }
         }
     }
 }

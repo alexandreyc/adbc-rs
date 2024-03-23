@@ -8,7 +8,9 @@ use arrow::error::ArrowError;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use adbc_rs::driver_manager::DriverManager;
-use adbc_rs::options::{AdbcVersion, InfoCode, ObjectDepth, OptionValue};
+use adbc_rs::options::{
+    AdbcVersion, ConnectionOptionKey, InfoCode, ObjectDepth, OptionValue, StatementOptionKey,
+};
 use adbc_rs::{error::Status, Driver, Optionable};
 use adbc_rs::{ffi, Connection, Database, Statement};
 
@@ -82,14 +84,17 @@ fn test_connection() {
 
     assert!(connection
         .set_option(
-            "adbc.connection.autocommit", // TODO: use proper enum
+            &ConnectionOptionKey::AutoCommit,
             OptionValue::String("true".into())
         )
         .is_ok());
 
     // Unknown connection option
     assert!(connection
-        .set_option("my.option", OptionValue::String("".into()))
+        .set_option(
+            &ConnectionOptionKey::Other("unknown".into()),
+            OptionValue::String("".into())
+        )
         .is_err());
 
     assert!(connection.new_statement().is_ok());
@@ -119,7 +124,7 @@ fn test_connection_commit_rollback() {
 
     connection
         .set_option(
-            "adbc.connection.autocommit", // TODO: use proper enum
+            &ConnectionOptionKey::AutoCommit,
             OptionValue::String("false".into()),
         )
         .unwrap();
@@ -263,13 +268,16 @@ fn test_statement() {
 
     statement
         .set_option(
-            "adbc.ingest.mode", // TODO: use proper enum
+            &StatementOptionKey::IngestMode,
             OptionValue::String("adbc.ingest.mode.create".into()),
         )
         .unwrap();
 
     statement
-        .set_option("unknown.key", OptionValue::String("unknown.value".into()))
+        .set_option(
+            &StatementOptionKey::Other("unknown".into()),
+            OptionValue::String("unknown.value".into()),
+        )
         .unwrap_err();
 }
 
@@ -424,7 +432,7 @@ fn test_ingestion_roundtrip() {
     // Ingest
     statement
         .set_option(
-            "adbc.ingest.target_table",
+            &StatementOptionKey::TargetTable,
             OptionValue::String("my_table".into()),
         )
         .unwrap();
