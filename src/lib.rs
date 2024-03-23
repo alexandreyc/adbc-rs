@@ -12,19 +12,19 @@ pub trait Optionable {
     type Key: AsRef<str>;
 
     /// Sets a post-init database option.
-    fn set_option(&mut self, key: &Self::Key, value: options::OptionValue) -> Result<()>;
+    fn set_option(&mut self, key: Self::Key, value: options::OptionValue) -> Result<()>;
 
     /// Gets a database option value by key.
-    fn get_option_string(&mut self, key: &Self::Key) -> Result<String>;
+    fn get_option_string(&mut self, key: Self::Key) -> Result<String>;
 
     /// Gets a database option value by key.
-    fn get_option_bytes(&mut self, key: &Self::Key) -> Result<Vec<u8>>;
+    fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>>;
 
     /// Gets a database option value by key.
-    fn get_option_int(&mut self, key: &Self::Key) -> Result<i64>;
+    fn get_option_int(&mut self, key: Self::Key) -> Result<i64>;
 
     /// Gets a database option value by key.
-    fn get_option_double(&mut self, key: &Self::Key) -> Result<f64>;
+    fn get_option_double(&mut self, key: Self::Key) -> Result<f64>;
 }
 
 pub trait Driver {
@@ -36,7 +36,12 @@ pub trait Driver {
     /// Allocates and initializes a new database with pre-init options.
     fn new_database_with_opts(
         &self,
-        opts: impl Iterator<Item = (impl AsRef<str>, options::OptionValue)>,
+        opts: impl Iterator<
+            Item = (
+                <Self::DatabaseType as Optionable>::Key,
+                options::OptionValue,
+            ),
+        >,
     ) -> Result<Self::DatabaseType>;
 }
 
@@ -49,7 +54,12 @@ pub trait Database: Optionable {
     /// Allocates and initializes a new connection with pre-init options.
     fn new_connection_with_opts(
         &mut self,
-        opts: impl Iterator<Item = (impl AsRef<str>, options::OptionValue)>,
+        opts: impl Iterator<
+            Item = (
+                <Self::ConnectionType as Optionable>::Key,
+                options::OptionValue,
+            ),
+        >,
     ) -> Result<Self::ConnectionType>;
 }
 

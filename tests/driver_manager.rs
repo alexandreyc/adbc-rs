@@ -9,7 +9,8 @@ use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use adbc_rs::driver_manager::DriverManager;
 use adbc_rs::options::{
-    AdbcVersion, ConnectionOptionKey, InfoCode, ObjectDepth, OptionValue, StatementOptionKey,
+    AdbcVersion, ConnectionOptionKey, DatabaseOptionKey, InfoCode, ObjectDepth, OptionValue,
+    StatementOptionKey,
 };
 use adbc_rs::{error::Status, Driver, Optionable};
 use adbc_rs::{ffi, Connection, Database, Statement};
@@ -35,11 +36,11 @@ fn test_driver_manager() {
 
     assert!(driver.new_database().is_ok());
 
-    let opts = [("uri", OptionValue::String("".into()))];
+    let opts = [(DatabaseOptionKey::Uri, OptionValue::String("".into()))];
     assert!(driver.new_database_with_opts(opts.into_iter()).is_ok());
 
     // Non-string options aren't allowed with ADBC 1.0.0
-    let opts = [("uri", OptionValue::Int(42))];
+    let opts = [(DatabaseOptionKey::Uri, OptionValue::Int(42))];
     assert!(driver.new_database_with_opts(opts.into_iter()).is_err());
 }
 
@@ -66,13 +67,16 @@ fn test_database() {
 
     // `adbc.connection.autocommit` can only be set after init
     let opts = [(
-        "adbc.connection.autocommit",
+        ConnectionOptionKey::AutoCommit,
         OptionValue::String("true".into()),
     )];
     assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
 
     // Unknown connection option
-    let opts = [("my.option", OptionValue::String("".into()))];
+    let opts = [(
+        ConnectionOptionKey::Other("unknown".into()),
+        OptionValue::String("".into()),
+    )];
     assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
 }
 
@@ -84,7 +88,7 @@ fn test_connection() {
 
     assert!(connection
         .set_option(
-            &ConnectionOptionKey::AutoCommit,
+            ConnectionOptionKey::AutoCommit,
             OptionValue::String("true".into())
         )
         .is_ok());
@@ -92,7 +96,7 @@ fn test_connection() {
     // Unknown connection option
     assert!(connection
         .set_option(
-            &ConnectionOptionKey::Other("unknown".into()),
+            ConnectionOptionKey::Other("unknown".into()),
             OptionValue::String("".into())
         )
         .is_err());
@@ -124,7 +128,7 @@ fn test_connection_commit_rollback() {
 
     connection
         .set_option(
-            &ConnectionOptionKey::AutoCommit,
+            ConnectionOptionKey::AutoCommit,
             OptionValue::String("false".into()),
         )
         .unwrap();
@@ -268,14 +272,14 @@ fn test_statement() {
 
     statement
         .set_option(
-            &StatementOptionKey::IngestMode,
+            StatementOptionKey::IngestMode,
             OptionValue::String("adbc.ingest.mode.create".into()),
         )
         .unwrap();
 
     statement
         .set_option(
-            &StatementOptionKey::Other("unknown".into()),
+            StatementOptionKey::Other("unknown".into()),
             OptionValue::String("unknown.value".into()),
         )
         .unwrap_err();
@@ -432,7 +436,7 @@ fn test_ingestion_roundtrip() {
     // Ingest
     statement
         .set_option(
-            &StatementOptionKey::TargetTable,
+            StatementOptionKey::TargetTable,
             OptionValue::String("my_table".into()),
         )
         .unwrap();
