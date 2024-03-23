@@ -81,6 +81,32 @@ fn test_database() {
 }
 
 #[test]
+fn test_database_get_option() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+
+    let error = database
+        .get_option_bytes(DatabaseOptionKey::Username)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+
+    let error = database
+        .get_option_string(DatabaseOptionKey::Username)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+
+    let error = database
+        .get_option_int(DatabaseOptionKey::Username)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+
+    let error = database
+        .get_option_double(DatabaseOptionKey::Username)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+}
+
+#[test]
 fn test_connection() {
     let driver = get_driver();
     let mut database = driver.new_database().unwrap();
@@ -102,6 +128,33 @@ fn test_connection() {
         .is_err());
 
     assert!(connection.new_statement().is_ok());
+}
+
+#[test]
+fn test_connection_get_option() {
+    let driver = get_driver();
+    let mut database = driver.new_database().unwrap();
+    let mut connection = database.new_connection().unwrap();
+
+    let error = connection
+        .get_option_bytes(ConnectionOptionKey::AutoCommit)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+
+    let error = connection
+        .get_option_string(ConnectionOptionKey::AutoCommit)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+
+    let error = connection
+        .get_option_int(ConnectionOptionKey::AutoCommit)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+
+    let error = connection
+        .get_option_double(ConnectionOptionKey::AutoCommit)
+        .unwrap_err();
+    assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
 
 #[test]

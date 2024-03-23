@@ -1,5 +1,5 @@
-use std::ffi::CString;
-use std::os::raw::c_void;
+use std::ffi::{CStr, CString};
+use std::os::raw::{c_char, c_void};
 use std::ptr::{null, null_mut};
 use std::rc::Rc;
 
@@ -7,7 +7,7 @@ use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
 use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
-use crate::ffi::FFI_AdbcPartitions;
+use crate::ffi::{FFI_AdbcError, FFI_AdbcPartitions, FFI_AdbcStatusCode};
 use crate::{driver_method, ffi, Optionable};
 use crate::{
     error::Status,
@@ -144,6 +144,69 @@ fn set_option_database(
     check_status(status, error)
 }
 
+fn get_option_bytes<F>(key: impl AsRef<str>, mut populate: F) -> Result<Vec<u8>>
+where
+    F: FnMut(*const c_char, *mut u8, *mut usize, *mut FFI_AdbcError) -> FFI_AdbcStatusCode,
+{
+    const DEFAULT_LENGTH: usize = 128;
+    let key = CString::new(key.as_ref())?;
+    let mut run = |length| {
+        let mut value = vec![0u8; length];
+        let mut length: usize = value.len();
+        let mut error = ffi::FFI_AdbcError::default();
+        (
+            populate(key.as_ptr(), value.as_mut_ptr(), &mut length, &mut error),
+            length,
+            value,
+            error,
+        )
+    };
+
+    let (status, length, value, error) = run(DEFAULT_LENGTH);
+    check_status(status, error)?;
+
+    if length <= DEFAULT_LENGTH {
+        Ok(value[..length].to_vec())
+    } else {
+        let (status, _, value, error) = run(length);
+        check_status(status, error)?;
+        Ok(value)
+    }
+}
+
+fn get_option_string<F>(key: impl AsRef<str>, mut populate: F) -> Result<String>
+where
+    F: FnMut(*const c_char, *mut c_char, *mut usize, *mut FFI_AdbcError) -> FFI_AdbcStatusCode,
+{
+    const DEFAULT_LENGTH: usize = 128;
+    let key = CString::new(key.as_ref())?;
+    let mut run = |length| {
+        let mut value: Vec<c_char> = vec![0; length];
+        let mut length: usize = value.len();
+        let mut error = ffi::FFI_AdbcError::default();
+        (
+            populate(key.as_ptr(), value.as_mut_ptr(), &mut length, &mut error),
+            length,
+            value,
+            error,
+        )
+    };
+
+    let (status, length, value, error) = run(DEFAULT_LENGTH);
+    check_status(status, error)?;
+
+    let value = if length <= DEFAULT_LENGTH {
+        value[..length].to_vec()
+    } else {
+        let (status, _, value, error) = run(length);
+        check_status(status, error)?;
+        value
+    };
+
+    let value = unsafe { CStr::from_ptr(value.as_ptr()) };
+    Ok(value.to_string_lossy().to_string())
+}
+
 pub struct ManagedDatabase {
     driver: Rc<ffi::FFI_AdbcDriver>,
     version: AdbcVersion,
@@ -152,7 +215,14 @@ pub struct ManagedDatabase {
 impl Optionable for ManagedDatabase {
     type Key = options::DatabaseOptionKey;
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
-        todo!()
+        let method = driver_method!(self.driver, DatabaseGetOptionBytes);
+        let populate = |key: *const c_char,
+                        value: *mut u8,
+                        length: *mut usize,
+                        error: *mut FFI_AdbcError| unsafe {
+            method(&mut self.database, key, value, length, error)
+        };
+        get_option_bytes(key, populate)
     }
     fn get_option_double(&mut self, key: Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
@@ -173,7 +243,14 @@ impl Optionable for ManagedDatabase {
         Ok(value)
     }
     fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
-        todo!()
+        let method = driver_method!(self.driver, DatabaseGetOption);
+        let populate = |key: *const c_char,
+                        value: *mut c_char,
+                        length: *mut usize,
+                        error: *mut FFI_AdbcError| unsafe {
+            method(&mut self.database, key, value, length, error)
+        };
+        get_option_string(key, populate)
     }
     fn set_option(&mut self, key: Self::Key, value: OptionValue) -> Result<()> {
         set_option_database(
@@ -291,7 +368,14 @@ pub struct ManagedConnection {
 impl Optionable for ManagedConnection {
     type Key = options::ConnectionOptionKey;
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
-        todo!()
+        let method = driver_method!(self.driver, ConnectionGetOptionBytes);
+        let populate = |key: *const c_char,
+                        value: *mut u8,
+                        length: *mut usize,
+                        error: *mut FFI_AdbcError| unsafe {
+            method(&mut self.connection, key, value, length, error)
+        };
+        get_option_bytes(key, populate)
     }
     fn get_option_double(&mut self, key: Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
@@ -312,7 +396,14 @@ impl Optionable for ManagedConnection {
         Ok(value)
     }
     fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
-        todo!()
+        let method = driver_method!(self.driver, ConnectionGetOption);
+        let populate = |key: *const c_char,
+                        value: *mut c_char,
+                        length: *mut usize,
+                        error: *mut FFI_AdbcError| unsafe {
+            method(&mut self.connection, key, value, length, error)
+        };
+        get_option_string(key, populate)
     }
     fn set_option(&mut self, key: Self::Key, value: OptionValue) -> Result<()> {
         set_option_connection(
@@ -776,7 +867,14 @@ impl Statement for ManagedStatement {
 impl Optionable for ManagedStatement {
     type Key = options::StatementOptionKey;
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
-        todo!()
+        let method = driver_method!(self.driver, StatementGetOptionBytes);
+        let populate = |key: *const c_char,
+                        value: *mut u8,
+                        length: *mut usize,
+                        error: *mut FFI_AdbcError| unsafe {
+            method(&mut self.statement, key, value, length, error)
+        };
+        get_option_bytes(key, populate)
     }
     fn get_option_double(&mut self, key: Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
@@ -797,7 +895,14 @@ impl Optionable for ManagedStatement {
         Ok(value)
     }
     fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
-        todo!()
+        let method = driver_method!(self.driver, StatementGetOption);
+        let populate = |key: *const c_char,
+                        value: *mut c_char,
+                        length: *mut usize,
+                        error: *mut FFI_AdbcError| unsafe {
+            method(&mut self.statement, key, value, length, error)
+        };
+        get_option_string(key, populate)
     }
     fn set_option(&mut self, key: Self::Key, value: OptionValue) -> Result<()> {
         set_option_statement(
