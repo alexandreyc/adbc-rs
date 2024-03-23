@@ -219,8 +219,7 @@ impl Default for FFI_AdbcDriver {
         Self {
             private_data: null_mut(),
             private_manager: null_mut(),
-            release: None, // TODO: change this value?
-
+            release: None,
             DatabaseInit: None,
             DatabaseNew: None,
             DatabaseSetOption: None,
@@ -236,7 +235,6 @@ impl Default for FFI_AdbcDriver {
             ConnectionReadPartition: None,
             ConnectionRelease: None,
             ConnectionRollback: None,
-
             StatementBind: None,
             StatementBindStream: None,
             StatementExecuteQuery: None,
@@ -248,11 +246,9 @@ impl Default for FFI_AdbcDriver {
             StatementSetOption: None,
             StatementSetSqlQuery: None,
             StatementSetSubstraitPlan: None,
-
             ErrorGetDetailCount: None,
             ErrorGetDetail: None,
             ErrorFromArrayStream: None,
-
             DatabaseGetOption: None,
             DatabaseGetOptionBytes: None,
             DatabaseGetOptionDouble: None,
@@ -289,7 +285,7 @@ impl Default for FFI_AdbcError {
             message: null(),
             vendor_code: ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA,
             sqlstate: [0; 5],
-            release: None, // TODO: is this correct?
+            release: None,
             private_data: null(),
             private_driver: null(),
         }
