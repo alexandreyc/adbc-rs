@@ -32,12 +32,44 @@ pub fn check_status(status: ffi::FFI_AdbcStatusCode, error: ffi::FFI_AdbcError) 
     }
 }
 
+/// If applicable, keeps the loaded dynamic library in scope as long as the
+/// FFI_AdbcDriver so that all it's function pointers remain valid.
 pub struct DriverManager {
     driver: Rc<ffi::FFI_AdbcDriver>,
     version: AdbcVersion, // Driver version
+    _library: Option<libloading::Library>,
 }
 impl DriverManager {
     pub fn load_static(init: &ffi::FFI_AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
+        let driver = Self::load_impl(init, version)?;
+        Ok(DriverManager {
+            driver: Rc::new(driver),
+            version,
+            _library: None,
+        })
+    }
+
+    pub fn load_dynamic(
+        name: &str,
+        entrypoint: Option<&[u8]>,
+        version: AdbcVersion,
+    ) -> Result<Self> {
+        let entrypoint = entrypoint.unwrap_or(b"AdbcDriverInit");
+        let library = unsafe { libloading::Library::new(libloading::library_filename(name))? };
+        let init: libloading::Symbol<ffi::FFI_AdbcDriverInitFunc> =
+            unsafe { library.get(entrypoint)? };
+        let driver = Self::load_impl(&init, version)?;
+        Ok(DriverManager {
+            driver: Rc::new(driver),
+            version,
+            _library: Some(library),
+        })
+    }
+
+    fn load_impl(
+        init: &ffi::FFI_AdbcDriverInitFunc,
+        version: AdbcVersion,
+    ) -> Result<ffi::FFI_AdbcDriver> {
         let mut error = ffi::FFI_AdbcError::default();
         let mut driver = ffi::FFI_AdbcDriver::default();
         let status = unsafe {
@@ -48,18 +80,7 @@ impl DriverManager {
             )
         };
         check_status(status, error)?;
-        Ok(DriverManager {
-            driver: Rc::new(driver),
-            version,
-        })
-    }
-
-    pub fn load_dynamic(
-        name: &str,
-        entrypoint: Option<&[u8]>,
-        version: AdbcVersion,
-    ) -> Result<Self> {
-        todo!()
+        Ok(driver)
     }
 }
 impl Driver for DriverManager {

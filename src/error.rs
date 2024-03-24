@@ -88,3 +88,15 @@ impl From<NulError> for Error {
         }
     }
 }
+
+impl From<libloading::Error> for Error {
+    fn from(value: libloading::Error) -> Self {
+        Self {
+            message: Some(format!("Error with dynamic library: {}", value)),
+            status: Some(Status::Internal),
+            vendor_code: 0,
+            sqlstate: [0; 5],
+            details: None,
+        }
+    }
+}
