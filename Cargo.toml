@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 arrow = { version = "50.0.0", default-features = false, features = ["ffi"] }
+libloading = "0.8"
