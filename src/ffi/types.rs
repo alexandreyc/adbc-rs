@@ -23,7 +23,7 @@ pub struct FFI_AdbcError {
     /// Added in ADBC 1.1.0.
     private_data: *const c_void,
     /// Added in ADBC 1.1.0.
-    private_driver: *const FFI_AdbcDriver,
+    pub(crate) private_driver: *const FFI_AdbcDriver,
 }
 
 #[repr(C)]
@@ -42,9 +42,9 @@ pub struct FFI_AdbcErrorDetail {
 pub struct FFI_AdbcDatabase {
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
-    private_data: *mut c_void,
+    private_data: *const c_void,
     /// The associated driver (used by the driver manager to help track state).
-    private_driver: *mut FFI_AdbcDriver,
+    pub(crate) private_driver: *const FFI_AdbcDriver,
 }
 
 #[repr(C)]
@@ -54,7 +54,7 @@ pub struct FFI_AdbcConnection {
     /// This field is NULLPTR iff the connection is unintialized/freed.
     private_data: *const c_void,
     /// The associated driver (used by the driver manager to help track state).
-    private_driver: *const FFI_AdbcDriver,
+    pub(crate) private_driver: *const FFI_AdbcDriver,
 }
 
 #[repr(C)]
@@ -64,7 +64,7 @@ pub struct FFI_AdbcStatement {
     /// This field is NULLPTR iff the connection is unintialized/freed.
     private_data: *const c_void,
     /// The associated driver (used by the driver manager to help track state).
-    private_driver: *const FFI_AdbcDriver,
+    pub(crate) private_driver: *const FFI_AdbcDriver,
 }
 
 #[repr(C)]
@@ -84,7 +84,7 @@ pub struct FFI_AdbcPartitions {
 
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
-    private_data: *mut c_void,
+    private_data: *const c_void,
 
     /// Release the contained partitions.
     /// Unlike other structures, this is an embedded callback to make it
@@ -98,11 +98,11 @@ pub struct FFI_AdbcDriver {
     /// Opaque driver-defined state.
     /// This field is NULL if the driver is unintialized/freed (but
     /// it need not have a value even if the driver is initialized).
-    private_data: *mut c_void,
+    private_data: *const c_void,
     /// Opaque driver manager-defined state.
     /// This field is NULL if the driver is unintialized/freed (but
     /// it need not have a value even if the driver is initialized).
-    private_manager: *mut c_void,
+    private_manager: *const c_void,
 
     release: Option<
         unsafe extern "C" fn(driver: *mut Self, error: *mut FFI_AdbcError) -> FFI_AdbcStatusCode,
@@ -171,8 +171,10 @@ pub struct FFI_AdbcDriver {
 
 #[macro_export]
 macro_rules! driver_method {
-    ($driver:expr, $method:ident) => {
-        $driver.$method.unwrap_or(crate::ffi::methods::$method)
+    ($private_driver:expr, $method:ident) => {
+        unsafe { $private_driver.as_ref().unwrap() }
+            .$method
+            .unwrap_or(crate::ffi::methods::$method)
     };
 }
 
@@ -361,8 +363,9 @@ impl From<FFI_AdbcError> for error::Error {
 
         if value.vendor_code == ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA {
             if let Some(driver) = unsafe { value.private_driver.as_ref() } {
-                let get_detail_count = driver_method!(driver, ErrorGetDetailCount);
-                let get_detail = driver_method!(driver, ErrorGetDetail);
+                let get_detail_count =
+                    driver_method!(driver as *const FFI_AdbcDriver, ErrorGetDetailCount);
+                let get_detail = driver_method!(driver as *const FFI_AdbcDriver, ErrorGetDetail);
                 let num_details = unsafe { get_detail_count(&value) };
                 let details = (0..num_details)
                     .map(|i| unsafe { get_detail(&value, i) })
