@@ -84,17 +84,17 @@ impl DriverManager {
     }
 }
 impl Driver for DriverManager {
-    type DatabaseType = ManagedDatabase;
+    type DatabaseType<'driver> = ManagedDatabase<'driver>;
 
-    fn new_database(&self) -> Result<Self::DatabaseType> {
-        let opts: [(<Self::DatabaseType as Optionable>::Key, OptionValue); 0] = [];
+    fn new_database(&self) -> Result<Self::DatabaseType<'_>> {
+        let opts: [(<Self::DatabaseType<'_> as Optionable>::Key, OptionValue); 0] = [];
         self.new_database_with_opts(opts.into_iter())
     }
 
-    fn new_database_with_opts(
+    fn new_database_with_opts<'a>(
         &self,
-        opts: impl Iterator<Item = (<Self::DatabaseType as Optionable>::Key, OptionValue)>,
-    ) -> Result<Self::DatabaseType> {
+        opts: impl Iterator<Item = (<Self::DatabaseType<'a> as Optionable>::Key, OptionValue)>,
+    ) -> Result<Self::DatabaseType<'_>> {
         let mut database = ffi::FFI_AdbcDatabase::default();
 
         // DatabaseNew
@@ -118,6 +118,7 @@ impl Driver for DriverManager {
             driver: self.driver.clone(),
             version: self.version,
             database,
+            _driver: self,
         })
     }
 }
@@ -228,12 +229,13 @@ where
     Ok(value.to_string_lossy().to_string())
 }
 
-pub struct ManagedDatabase {
+pub struct ManagedDatabase<'driver> {
     driver: Rc<ffi::FFI_AdbcDriver>,
     version: AdbcVersion,
     database: ffi::FFI_AdbcDatabase,
+    _driver: &'driver DriverManager,
 }
-impl Optionable for ManagedDatabase {
+impl<'driver> Optionable for ManagedDatabase<'driver> {
     type Key = options::DatabaseOptionKey;
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
         let method = driver_method!(self.driver, DatabaseGetOptionBytes);
@@ -283,18 +285,21 @@ impl Optionable for ManagedDatabase {
         )
     }
 }
-impl Database for ManagedDatabase {
-    type ConnectionType = ManagedConnection;
+impl<'driver> Database for ManagedDatabase<'driver> {
+    type ConnectionType<'database> = ManagedConnection<'driver, 'database> where Self: 'database;
 
-    fn new_connection(&mut self) -> Result<Self::ConnectionType> {
-        let opts: [(<Self::ConnectionType as Optionable>::Key, OptionValue); 0] = [];
+    fn new_connection(&mut self) -> Result<Self::ConnectionType<'_>> {
+        let opts: [(<Self::ConnectionType<'_> as Optionable>::Key, OptionValue); 0] = [];
         self.new_connection_with_opts(opts.into_iter())
     }
 
-    fn new_connection_with_opts(
+    fn new_connection_with_opts<'a>(
         &mut self,
-        opts: impl Iterator<Item = (<Self::ConnectionType as Optionable>::Key, OptionValue)>,
-    ) -> Result<Self::ConnectionType> {
+        opts: impl Iterator<Item = (<Self::ConnectionType<'a> as Optionable>::Key, OptionValue)>,
+    ) -> Result<Self::ConnectionType<'_>>
+    where
+        Self: 'a,
+    {
         let mut connection = ffi::FFI_AdbcConnection::default();
 
         // ConnectioNew
@@ -324,10 +329,11 @@ impl Database for ManagedDatabase {
             driver: self.driver.clone(),
             version: self.version,
             connection,
+            _database: self,
         })
     }
 }
-impl Drop for ManagedDatabase {
+impl<'driver> Drop for ManagedDatabase<'driver> {
     fn drop(&mut self) {
         let mut error = ffi::FFI_AdbcError::default();
         let method = driver_method!(self.driver, DatabaseRelease);
@@ -381,12 +387,13 @@ fn set_option_connection(
     check_status(status, error)
 }
 
-pub struct ManagedConnection {
+pub struct ManagedConnection<'driver, 'database> {
     driver: Rc<ffi::FFI_AdbcDriver>,
     connection: ffi::FFI_AdbcConnection,
     version: AdbcVersion,
+    _database: &'database ManagedDatabase<'driver>,
 }
-impl Optionable for ManagedConnection {
+impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
     type Key = options::ConnectionOptionKey;
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
         let method = driver_method!(self.driver, ConnectionGetOptionBytes);
@@ -436,10 +443,10 @@ impl Optionable for ManagedConnection {
         )
     }
 }
-impl Connection for ManagedConnection {
-    type StatementType = ManagedStatement;
+impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
+    type StatementType<'connection> = ManagedStatement<'driver, 'database, 'connection> where Self: 'connection;
 
-    fn new_statement(&mut self) -> Result<Self::StatementType> {
+    fn new_statement(&mut self) -> Result<Self::StatementType<'_>> {
         let mut statement = ffi::FFI_AdbcStatement::default();
         let mut error = ffi::FFI_AdbcError::default();
         let method = driver_method!(self.driver, StatementNew);
@@ -449,6 +456,7 @@ impl Connection for ManagedConnection {
             driver: self.driver.clone(),
             statement,
             version: self.version,
+            _connection: self,
         })
     }
 
@@ -704,7 +712,7 @@ impl Connection for ManagedConnection {
         Ok(reader)
     }
 }
-impl Drop for ManagedConnection {
+impl<'driver, 'database> Drop for ManagedConnection<'driver, 'database> {
     fn drop(&mut self) {
         let mut error = ffi::FFI_AdbcError::default();
         let connection_release = driver_method!(self.driver, ConnectionRelease);
@@ -758,12 +766,15 @@ fn set_option_statement(
     check_status(status, error)
 }
 
-pub struct ManagedStatement {
+pub struct ManagedStatement<'driver, 'database, 'connection> {
     driver: Rc<ffi::FFI_AdbcDriver>,
     statement: ffi::FFI_AdbcStatement,
     version: AdbcVersion,
+    _connection: &'connection ManagedConnection<'driver, 'database>,
 }
-impl Statement for ManagedStatement {
+impl<'driver, 'database, 'connection> Statement
+    for ManagedStatement<'driver, 'database, 'connection>
+{
     fn bind(&mut self, batch: RecordBatch) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
         let method = driver_method!(self.driver, StatementBind);
@@ -885,7 +896,9 @@ impl Statement for ManagedStatement {
         Ok(())
     }
 }
-impl Optionable for ManagedStatement {
+impl<'driver, 'database, 'connection> Optionable
+    for ManagedStatement<'driver, 'database, 'connection>
+{
     type Key = options::StatementOptionKey;
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
         let method = driver_method!(self.driver, StatementGetOptionBytes);
@@ -935,7 +948,7 @@ impl Optionable for ManagedStatement {
         )
     }
 }
-impl Drop for ManagedStatement {
+impl<'driver, 'database, 'connection> Drop for ManagedStatement<'driver, 'database, 'connection> {
     fn drop(&mut self) {
         let mut error = ffi::FFI_AdbcError::default();
         let method = driver_method!(self.driver, StatementRelease);

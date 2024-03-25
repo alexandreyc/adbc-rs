@@ -28,46 +28,56 @@ pub trait Optionable {
 }
 
 pub trait Driver {
-    type DatabaseType: Database;
+    type DatabaseType<'driver>: Database
+    where
+        Self: 'driver;
 
     /// Allocates and initializes a new database without pre-init options.
-    fn new_database(&self) -> Result<Self::DatabaseType>;
+    fn new_database(&self) -> Result<Self::DatabaseType<'_>>;
 
     /// Allocates and initializes a new database with pre-init options.
-    fn new_database_with_opts(
+    fn new_database_with_opts<'a>(
         &self,
         opts: impl Iterator<
             Item = (
-                <Self::DatabaseType as Optionable>::Key,
+                <Self::DatabaseType<'a> as Optionable>::Key,
                 options::OptionValue,
             ),
         >,
-    ) -> Result<Self::DatabaseType>;
+    ) -> Result<Self::DatabaseType<'_>>
+    where
+        Self: 'a;
 }
 
 pub trait Database: Optionable {
-    type ConnectionType: Connection;
+    type ConnectionType<'database>: Connection
+    where
+        Self: 'database;
 
     /// Allocates and initializes a new connection without pre-init options.
-    fn new_connection(&mut self) -> Result<Self::ConnectionType>;
+    fn new_connection(&mut self) -> Result<Self::ConnectionType<'_>>;
 
     /// Allocates and initializes a new connection with pre-init options.
-    fn new_connection_with_opts(
+    fn new_connection_with_opts<'a>(
         &mut self,
         opts: impl Iterator<
             Item = (
-                <Self::ConnectionType as Optionable>::Key,
+                <Self::ConnectionType<'a> as Optionable>::Key,
                 options::OptionValue,
             ),
         >,
-    ) -> Result<Self::ConnectionType>;
+    ) -> Result<Self::ConnectionType<'_>>
+    where
+        Self: 'a;
 }
 
 pub trait Connection: Optionable {
-    type StatementType: Statement;
+    type StatementType<'connection>: Statement
+    where
+        Self: 'connection;
 
     /// Allocates and initializes a new statement.
-    fn new_statement(&mut self) -> Result<Self::StatementType>;
+    fn new_statement(&mut self) -> Result<Self::StatementType<'_>>;
 
     fn cancel(&mut self) -> Result<()>;
     fn get_info(&mut self, codes: Option<&[options::InfoCode]>) -> Result<impl RecordBatchReader>;
