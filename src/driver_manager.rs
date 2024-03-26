@@ -498,42 +498,31 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         table_type: Option<&[&str]>,
         column_name: Option<&str>,
     ) -> Result<impl RecordBatchReader> {
-        let catalog = catalog
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let db_schema = db_schema
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let table_name = table_name
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let column_name = column_name
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let table_type = table_type
+        let catalog = catalog.map(|c| CString::new(c)).transpose()?;
+        let db_schema = db_schema.map(|c| CString::new(c)).transpose()?;
+        let table_name = table_name.map(|c| CString::new(c)).transpose()?;
+        let column_name = column_name.map(|c| CString::new(c)).transpose()?;
+        let mut table_type = table_type
             .map(|t| {
                 t.iter()
                     .map(|x| CString::new(*x))
                     .collect::<std::result::Result<Vec<CString>, _>>()
             })
-            .transpose()?;
-        let table_type = table_type
-            .as_ref()
-            .map(|c| {
-                let mut array = c.iter().map(|c| c.as_ptr()).collect::<Vec<_>>();
-                array.push(null());
-                array
-            })
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
+            .transpose()?
+            .map(|v| v.into_iter().map(|c| c.as_ptr()))
+            .map(|c| c.collect::<Vec<_>>());
+
+        let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
+        let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
+        let table_name_ptr = table_name.map(|c| c.as_ptr()).unwrap_or(null());
+        let column_name_ptr = column_name.map(|c| c.as_ptr()).unwrap_or(null());
+        let table_type_ptr = match &mut table_type {
+            None => null(),
+            Some(t) => {
+                t.push(null());
+                t.as_ptr()
+            }
+        };
 
         let mut error = ffi::FFI_AdbcError::default();
         let method = driver_method!(self.connection.private_driver, ConnectionGetObjects);
@@ -543,11 +532,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
             method(
                 &mut self.connection,
                 depth.into(),
-                catalog,
-                db_schema,
-                table_name,
-                table_type,
-                column_name,
+                catalog_ptr,
+                db_schema_ptr,
+                table_name_ptr,
+                table_type_ptr,
+                column_name_ptr,
                 &mut stream,
                 &mut error,
             )
