@@ -1,2 +1,4 @@
 /target
 *.a
+*.dylib
+.vscode
