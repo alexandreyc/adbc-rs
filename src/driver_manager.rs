@@ -561,21 +561,13 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
             ));
         }
 
-        let catalog = catalog
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let db_schema = db_schema
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let table_name = table_name
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
+        let catalog = catalog.map(|c| CString::new(c)).transpose()?;
+        let db_schema = db_schema.map(|c| CString::new(c)).transpose()?;
+        let table_name = table_name.map(|c| CString::new(c)).transpose()?;
+
+        let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
+        let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
+        let table_name_ptr = table_name.map(|c| c.as_ptr()).unwrap_or(null());
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
@@ -583,9 +575,9 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         let status = unsafe {
             method(
                 &mut self.connection,
-                catalog,
-                db_schema,
-                table_name,
+                catalog_ptr,
+                db_schema_ptr,
+                table_name_ptr,
                 approximate as std::os::raw::c_char,
                 &mut stream,
                 &mut error,
@@ -618,17 +610,13 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         db_schema: Option<&str>,
         table_name: &str,
     ) -> Result<arrow::datatypes::Schema> {
-        let catalog = catalog
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
-        let db_schema = db_schema
-            .map(|c| CString::new(c))
-            .transpose()?
-            .map(|c| c.as_ptr())
-            .unwrap_or(null());
+        let catalog = catalog.map(|c| CString::new(c)).transpose()?;
+        let db_schema = db_schema.map(|c| CString::new(c)).transpose()?;
         let table_name = CString::new(table_name)?;
+
+        let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
+        let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
+        let table_name_ptr = table_name.as_ptr();
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut schema = FFI_ArrowSchema::empty();
@@ -636,9 +624,9 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         let status = unsafe {
             method(
                 &mut self.connection,
-                catalog,
-                db_schema,
-                table_name.as_ptr(),
+                catalog_ptr,
+                db_schema_ptr,
+                table_name_ptr,
                 &mut schema,
                 &mut error,
             )
