@@ -1,4 +1,5 @@
 use std::ffi::{CStr, CString};
+use std::marker::PhantomData;
 use std::os::raw::{c_char, c_void};
 use std::ptr::{null, null_mut};
 
@@ -117,7 +118,7 @@ impl Driver for DriverManager {
         Ok(Self::DatabaseType {
             database,
             version: self.version,
-            _driver: self,
+            _phantom: PhantomData,
         })
     }
 }
@@ -230,7 +231,7 @@ where
 pub struct ManagedDatabase<'driver> {
     database: ffi::FFI_AdbcDatabase,
     version: AdbcVersion,
-    _driver: &'driver DriverManager,
+    _phantom: PhantomData<&'driver DriverManager>,
 }
 impl<'driver> Optionable for ManagedDatabase<'driver> {
     type Key = options::DatabaseOptionKey;
@@ -310,7 +311,7 @@ impl<'driver> Database for ManagedDatabase<'driver> {
         Ok(Self::ConnectionType {
             version: self.version,
             connection,
-            _database: self,
+            _phantom: PhantomData,
         })
     }
 }
@@ -370,7 +371,7 @@ fn set_option_connection(
 pub struct ManagedConnection<'driver, 'database> {
     connection: ffi::FFI_AdbcConnection,
     version: AdbcVersion,
-    _database: &'database ManagedDatabase<'driver>,
+    _phantom: PhantomData<&'database ManagedDatabase<'driver>>,
 }
 impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
     type Key = options::ConnectionOptionKey;
@@ -430,7 +431,7 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         Ok(Self::StatementType {
             statement,
             version: self.version,
-            _connection: self,
+            _phantom: PhantomData,
         })
     }
 
@@ -741,7 +742,7 @@ fn set_option_statement(
 pub struct ManagedStatement<'driver, 'database, 'connection> {
     statement: ffi::FFI_AdbcStatement,
     version: AdbcVersion,
-    _connection: &'connection ManagedConnection<'driver, 'database>,
+    _phantom: PhantomData<&'connection ManagedConnection<'driver, 'database>>,
 }
 impl<'driver, 'database, 'connection> Statement
     for ManagedStatement<'driver, 'database, 'connection>
