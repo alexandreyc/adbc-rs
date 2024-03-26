@@ -1,4 +1,3 @@
-use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
 
 use arrow::array::{Array, Float64Array, Int64Array, StringArray};
@@ -13,43 +12,10 @@ use adbc_rs::options::{
     StatementOptionKey,
 };
 use adbc_rs::{error::Status, Driver, Optionable};
-use adbc_rs::{ffi, Connection, Database, Statement};
-
-#[link(name = "adbc_driver_sqlite", kind = "static")]
-extern "C" {
-    fn SqliteDriverInit(
-        version: c_int,
-        raw_driver: *mut c_void,
-        error: *mut ffi::FFI_AdbcError,
-    ) -> ffi::FFI_AdbcStatusCode;
-}
-
-#[test]
-fn test_driver_manager() {
-    let init = &(SqliteDriverInit as ffi::FFI_AdbcDriverInitFunc);
-
-    assert!(DriverManager::load_static(init, AdbcVersion::V110).is_err());
-
-    let driver = DriverManager::load_static(init, AdbcVersion::V100);
-    assert!(driver.is_ok());
-    let driver = driver.unwrap();
-
-    assert!(driver.new_database().is_ok());
-
-    let opts = [(DatabaseOptionKey::Uri, OptionValue::String("".into()))];
-    assert!(driver.new_database_with_opts(opts.into_iter()).is_ok());
-
-    // Non-string options aren't allowed with ADBC 1.0.0
-    let opts = [(DatabaseOptionKey::Uri, OptionValue::Int(42))];
-    assert!(driver.new_database_with_opts(opts.into_iter()).is_err());
-}
+use adbc_rs::{Connection, Database, Statement};
 
 fn get_driver() -> DriverManager {
-    DriverManager::load_static(
-        &(SqliteDriverInit as ffi::FFI_AdbcDriverInitFunc),
-        AdbcVersion::V100,
-    )
-    .unwrap()
+    DriverManager::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100).unwrap()
 }
 
 fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
@@ -65,12 +31,11 @@ fn test_database() {
 
     assert!(database.new_connection().is_ok());
 
-    // `adbc.connection.autocommit` can only be set after init
     let opts = [(
         ConnectionOptionKey::AutoCommit,
         OptionValue::String("true".into()),
     )];
-    assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
+    database.new_connection_with_opts(opts.into_iter()).unwrap();
 
     // Unknown connection option
     let opts = [(

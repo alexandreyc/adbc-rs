@@ -12,7 +12,7 @@ use adbc_rs::options::{
     StatementOptionKey,
 };
 use adbc_rs::{error::Status, Driver, Optionable};
-use adbc_rs::{ffi, Connection, Database, Statement};
+use adbc_rs::{Connection, Database, Statement};
 
 fn get_driver() -> DriverManager {
     // DriverManager::load_static(
