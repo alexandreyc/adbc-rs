@@ -479,7 +479,7 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         check_status(status, error)?;
 
         Ok(Self::StatementType {
-            statement,
+            statement: Arc::new(Mutex::new(statement)),
             version: self.version,
             connection: self,
         })
@@ -790,7 +790,7 @@ fn set_option_statement(
 }
 
 pub struct ManagedStatement<'driver, 'database, 'connection> {
-    statement: ffi::FFI_AdbcStatement,
+    statement: Arc<Mutex<ffi::FFI_AdbcStatement>>,
     version: AdbcVersion,
     connection: &'connection ManagedConnection<'driver, 'database>,
 }
@@ -803,7 +803,8 @@ impl<'driver, 'database, 'connection> Statement
         let method = driver_method!(driver, StatementBind);
         let batch: StructArray = batch.into();
         let (mut array, mut schema) = to_ffi(&batch.to_data())?;
-        let status = unsafe { method(&mut self.statement, &mut array, &mut schema, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut array, &mut schema, &mut error) };
         check_status(status, error)?;
         Ok(())
     }
@@ -813,7 +814,8 @@ impl<'driver, 'database, 'connection> Statement
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementBindStream);
         let mut stream = FFI_ArrowArrayStream::new(reader);
-        let status = unsafe { method(&mut self.statement, &mut stream, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut stream, &mut error) };
         check_status(status, error)?;
         Ok(())
     }
@@ -828,7 +830,8 @@ impl<'driver, 'database, 'connection> Statement
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementCancel);
-        let status = unsafe { method(&mut self.statement, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut error) };
         check_status(status, error)
     }
 
@@ -837,7 +840,8 @@ impl<'driver, 'database, 'connection> Statement
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementExecuteQuery);
         let mut stream = FFI_ArrowArrayStream::empty();
-        let status = unsafe { method(&mut self.statement, &mut stream, null_mut(), &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut stream, null_mut(), &mut error) };
         check_status(status, error)?;
         let reader = ArrowArrayStreamReader::try_new(stream)?;
         Ok(reader)
@@ -848,7 +852,8 @@ impl<'driver, 'database, 'connection> Statement
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementExecuteSchema);
         let mut schema = FFI_ArrowSchema::empty();
-        let status = unsafe { method(&mut self.statement, &mut schema, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut schema, &mut error) };
         check_status(status, error)?;
         Ok((&schema).try_into()?)
     }
@@ -858,9 +863,10 @@ impl<'driver, 'database, 'connection> Statement
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementExecuteQuery);
         let mut rows_affected: i64 = -1;
+        let mut statement = self.statement.lock().unwrap();
         let status = unsafe {
             method(
-                &mut self.statement,
+                statement.deref_mut(),
                 null_mut(),
                 &mut rows_affected,
                 &mut error,
@@ -877,9 +883,10 @@ impl<'driver, 'database, 'connection> Statement
         let mut schema = FFI_ArrowSchema::empty();
         let mut partitions = ffi::FFI_AdbcPartitions::default();
         let mut rows_affected: i64 = -1;
+        let mut statement = self.statement.lock().unwrap();
         let status = unsafe {
             method(
-                &mut self.statement,
+                statement.deref_mut(),
                 &mut schema,
                 &mut partitions,
                 &mut rows_affected,
@@ -895,7 +902,8 @@ impl<'driver, 'database, 'connection> Statement
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetParameterSchema);
         let mut schema = FFI_ArrowSchema::empty();
-        let status = unsafe { method(&mut self.statement, &mut schema, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut schema, &mut error) };
         check_status(status, error)?;
         Ok((&schema).try_into()?)
     }
@@ -904,7 +912,8 @@ impl<'driver, 'database, 'connection> Statement
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementPrepare);
-        let status = unsafe { method(&mut self.statement, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut error) };
         check_status(status, error)?;
         Ok(())
     }
@@ -914,7 +923,8 @@ impl<'driver, 'database, 'connection> Statement
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementSetSqlQuery);
-        let status = unsafe { method(&mut self.statement, query.as_ptr(), &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), query.as_ptr(), &mut error) };
         check_status(status, error)?;
         Ok(())
     }
@@ -923,7 +933,9 @@ impl<'driver, 'database, 'connection> Statement
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementSetSubstraitPlan);
-        let status = unsafe { method(&mut self.statement, plan.as_ptr(), plan.len(), &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status =
+            unsafe { method(statement.deref_mut(), plan.as_ptr(), plan.len(), &mut error) };
         check_status(status, error)?;
         Ok(())
     }
@@ -935,11 +947,12 @@ impl<'driver, 'database, 'connection> Optionable
     fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOptionBytes);
+        let mut statement = self.statement.lock().unwrap();
         let populate = |key: *const c_char,
                         value: *mut u8,
                         length: *mut usize,
                         error: *mut ffi::FFI_AdbcError| unsafe {
-            method(&mut self.statement, key, value, length, error)
+            method(statement.deref_mut(), key, value, length, error)
         };
         get_option_bytes(key, populate)
     }
@@ -949,7 +962,8 @@ impl<'driver, 'database, 'connection> Optionable
         let mut value: f64 = 0.0;
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOptionDouble);
-        let status = unsafe { method(&mut self.statement, key.as_ptr(), &mut value, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
     }
@@ -959,26 +973,29 @@ impl<'driver, 'database, 'connection> Optionable
         let mut value: i64 = 0;
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOptionInt);
-        let status = unsafe { method(&mut self.statement, key.as_ptr(), &mut value, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
     }
     fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOption);
+        let mut statement = self.statement.lock().unwrap();
         let populate = |key: *const c_char,
                         value: *mut c_char,
                         length: *mut usize,
                         error: *mut ffi::FFI_AdbcError| unsafe {
-            method(&mut self.statement, key, value, length, error)
+            method(statement.deref_mut(), key, value, length, error)
         };
         get_option_string(key, populate)
     }
     fn set_option(&mut self, key: Self::Key, value: OptionValue) -> Result<()> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
+        let mut statement = self.statement.lock().unwrap();
         set_option_statement(
             driver.deref(),
-            &mut self.statement,
+            statement.deref_mut(),
             self.version,
             key,
             value,
@@ -990,7 +1007,8 @@ impl<'driver, 'database, 'connection> Drop for ManagedStatement<'driver, 'databa
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementRelease);
-        let status = unsafe { method(&mut self.statement, &mut error) };
+        let mut statement = self.statement.lock().unwrap();
+        let status = unsafe { method(statement.deref_mut(), &mut error) };
         if let Err(err) = check_status(status, error) {
             panic!("unable to drop statement: {:?}", err);
         }
