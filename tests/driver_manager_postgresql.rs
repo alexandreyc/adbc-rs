@@ -40,7 +40,7 @@ fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
 #[test]
 fn test_database() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
 
     assert!(database.new_connection().is_ok());
 
@@ -108,7 +108,7 @@ fn test_database_get_set_option() {
 #[test]
 fn test_connection() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
 
     assert!(connection
@@ -132,7 +132,7 @@ fn test_connection() {
 #[test]
 fn test_connection_get_set_option() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
 
     let value = connection
@@ -192,7 +192,7 @@ fn test_connection_get_set_option() {
 #[test]
 fn test_connection_cancel() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     connection.cancel().unwrap();
 }
@@ -200,7 +200,7 @@ fn test_connection_cancel() {
 #[test]
 fn test_connection_commit_rollback() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
 
     let error = connection.commit().unwrap_err();
@@ -225,7 +225,7 @@ fn test_connection_commit_rollback() {
 #[test]
 fn test_connection_read_partition() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     assert!(connection.read_partition(b"").is_err());
 }
@@ -233,7 +233,7 @@ fn test_connection_read_partition() {
 #[test]
 fn test_connection_get_table_types() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let table_types = concat_reader(connection.get_table_types().unwrap());
     assert_eq!(table_types.num_columns(), 1);
@@ -243,7 +243,7 @@ fn test_connection_get_table_types() {
 #[test]
 fn test_connection_get_info() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
 
     let info = concat_reader(connection.get_info(None).unwrap());
@@ -267,7 +267,7 @@ fn test_connection_get_info() {
 #[test]
 fn test_connection_get_objects() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
 
     let objects = concat_reader(
@@ -311,7 +311,7 @@ fn test_connection_get_objects() {
 #[test]
 fn test_connection_get_table_schema() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -335,7 +335,7 @@ fn test_connection_get_table_schema() {
 #[test]
 fn test_connection_get_statistics_name() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let names = concat_reader(connection.get_statistics_name().unwrap());
     assert_eq!(names.num_columns(), 2);
@@ -345,7 +345,7 @@ fn test_connection_get_statistics_name() {
 #[test]
 fn test_connection_get_statistics() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     assert!(connection.get_statistics(None, None, None, false).is_err());
 }
@@ -353,7 +353,7 @@ fn test_connection_get_statistics() {
 #[test]
 fn test_statement() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -375,7 +375,7 @@ fn test_statement() {
 #[test]
 fn test_statement_get_set_option() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -432,7 +432,7 @@ fn test_statement_get_set_option() {
 #[test]
 fn test_statement_prepare() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
     let error = statement.prepare().unwrap_err();
@@ -442,7 +442,7 @@ fn test_statement_prepare() {
 #[test]
 fn test_statement_set_sql_query_and_prepare() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
     statement.set_sql_query("select 42").unwrap();
@@ -452,7 +452,7 @@ fn test_statement_set_sql_query_and_prepare() {
 #[test]
 fn test_statement_set_substrait_plan() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
     let error = statement.set_substrait_plan(b"").unwrap_err();
@@ -462,7 +462,7 @@ fn test_statement_set_substrait_plan() {
 #[test]
 fn test_statement_get_parameters_schema() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -477,7 +477,7 @@ fn test_statement_get_parameters_schema() {
 #[test]
 fn test_statement_execute() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -492,7 +492,7 @@ fn test_statement_execute() {
 #[test]
 fn test_statement_execute_update() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -511,7 +511,7 @@ fn test_statement_execute_update() {
 #[test]
 fn test_statement_execute_schema() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -527,7 +527,7 @@ fn test_statement_execute_schema() {
 #[test]
 fn test_statement_execute_partitions() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -538,7 +538,7 @@ fn test_statement_execute_partitions() {
 #[test]
 fn test_statement_cancel() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
     statement.cancel().unwrap();
@@ -547,7 +547,7 @@ fn test_statement_cancel() {
 #[test]
 fn test_statement_bind() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -561,7 +561,7 @@ fn test_statement_bind() {
 #[test]
 fn test_statement_bind_stream() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
@@ -576,7 +576,7 @@ fn test_statement_bind_stream() {
 #[test]
 fn test_ingestion_roundtrip() {
     let driver = get_driver();
-    let mut database = get_database(&driver);
+    let database = get_database(&driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 

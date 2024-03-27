@@ -307,13 +307,13 @@ impl<'driver> Optionable for ManagedDatabase<'driver> {
 impl<'driver> Database for ManagedDatabase<'driver> {
     type ConnectionType<'database> = ManagedConnection<'driver, 'database> where Self: 'database;
 
-    fn new_connection(&mut self) -> Result<Self::ConnectionType<'_>> {
+    fn new_connection(&self) -> Result<Self::ConnectionType<'_>> {
         let opts: [(<Self::ConnectionType<'_> as Optionable>::Key, OptionValue); 0] = [];
         self.new_connection_with_opts(opts.into_iter())
     }
 
     fn new_connection_with_opts<'a>(
-        &mut self,
+        &self,
         opts: impl Iterator<Item = (<Self::ConnectionType<'a> as Optionable>::Key, OptionValue)>,
     ) -> Result<Self::ConnectionType<'_>>
     where

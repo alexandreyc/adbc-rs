@@ -55,11 +55,11 @@ pub trait Database: Optionable {
         Self: 'database;
 
     /// Allocates and initializes a new connection without pre-init options.
-    fn new_connection(&mut self) -> Result<Self::ConnectionType<'_>>;
+    fn new_connection(&self) -> Result<Self::ConnectionType<'_>>;
 
     /// Allocates and initializes a new connection with pre-init options.
     fn new_connection_with_opts<'a>(
-        &mut self,
+        &self,
         opts: impl Iterator<
             Item = (
                 <Self::ConnectionType<'a> as Optionable>::Key,
