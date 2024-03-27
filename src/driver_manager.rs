@@ -99,8 +99,8 @@ impl Driver for DriverManager {
 
         // DatabaseNew
         let mut error = ffi::FFI_AdbcError::default();
-        let database_new = driver_method!(&self.driver as *const FFI_AdbcDriver, DatabaseNew);
-        let status = unsafe { database_new(&mut database, &mut error) };
+        let method = driver_method!(&self.driver as *const FFI_AdbcDriver, DatabaseNew);
+        let status = unsafe { method(&mut database, &mut error) };
         check_status(status, error)?;
         database.private_driver = &self.driver;
 
@@ -294,8 +294,8 @@ impl<'driver> Database for ManagedDatabase<'driver> {
     {
         let mut connection = ffi::FFI_AdbcConnection::default();
         let mut error = ffi::FFI_AdbcError::default();
-        let connection_new = driver_method!(self.database.private_driver, ConnectionNew);
-        let status = unsafe { connection_new(&mut connection, &mut error) };
+        let method = driver_method!(self.database.private_driver, ConnectionNew);
+        let status = unsafe { method(&mut connection, &mut error) };
         check_status(status, error)?;
         connection.private_driver = self.database.private_driver;
 
@@ -304,8 +304,8 @@ impl<'driver> Database for ManagedDatabase<'driver> {
         }
 
         let mut error = ffi::FFI_AdbcError::default();
-        let connection_init = driver_method!(self.database.private_driver, ConnectionInit);
-        let status = unsafe { connection_init(&mut connection, &mut self.database, &mut error) };
+        let method = driver_method!(self.database.private_driver, ConnectionInit);
+        let status = unsafe { method(&mut connection, &mut self.database, &mut error) };
         check_status(status, error)?;
 
         Ok(Self::ConnectionType {
@@ -666,8 +666,8 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
 impl<'driver, 'database> Drop for ManagedConnection<'driver, 'database> {
     fn drop(&mut self) {
         let mut error = ffi::FFI_AdbcError::default();
-        let connection_release = driver_method!(self.connection.private_driver, ConnectionRelease);
-        let status = unsafe { connection_release(&mut self.connection, &mut error) };
+        let method = driver_method!(self.connection.private_driver, ConnectionRelease);
+        let status = unsafe { method(&mut self.connection, &mut error) };
         if let Err(err) = check_status(status, error) {
             panic!("unable to drop connection: {:?}", err);
         }
