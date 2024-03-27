@@ -1,6 +1,7 @@
 #![allow(non_camel_case_types, non_snake_case)]
 
 use std::ffi::CStr;
+use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
 
@@ -171,8 +172,9 @@ pub struct FFI_AdbcDriver {
 
 #[macro_export]
 macro_rules! driver_method {
-    ($private_driver:expr, $method:ident) => {
-        unsafe { $private_driver.as_ref().unwrap() }
+    ($driver:expr, $method:ident) => {
+        $driver
+            .deref()
             .$method
             .unwrap_or(crate::ffi::methods::$method)
     };
@@ -363,9 +365,8 @@ impl From<FFI_AdbcError> for error::Error {
 
         if value.vendor_code == ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA {
             if let Some(driver) = unsafe { value.private_driver.as_ref() } {
-                let get_detail_count =
-                    driver_method!(driver as *const FFI_AdbcDriver, ErrorGetDetailCount);
-                let get_detail = driver_method!(driver as *const FFI_AdbcDriver, ErrorGetDetail);
+                let get_detail_count = driver_method!(driver, ErrorGetDetailCount);
+                let get_detail = driver_method!(driver, ErrorGetDetail);
                 let num_details = unsafe { get_detail_count(&value) };
                 let details = (0..num_details)
                     .map(|i| unsafe { get_detail(&value, i) })
