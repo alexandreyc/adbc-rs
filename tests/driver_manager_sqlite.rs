@@ -85,7 +85,7 @@ fn test_database_get_option() {
 fn test_connection() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
 
     assert!(connection
         .set_option(
@@ -136,7 +136,7 @@ fn test_connection_get_option() {
 fn test_connection_cancel() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
 
     let error = connection.cancel().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
@@ -146,7 +146,7 @@ fn test_connection_cancel() {
 fn test_connection_commit_rollback() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
 
     let error = connection.commit().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::InvalidState);
@@ -171,7 +171,7 @@ fn test_connection_commit_rollback() {
 fn test_connection_read_partition() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
     assert!(connection.read_partition(b"").is_err());
 }
 
@@ -179,7 +179,7 @@ fn test_connection_read_partition() {
 fn test_connection_get_table_types() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
     let table_types = concat_reader(connection.get_table_types().unwrap());
     assert_eq!(table_types.num_columns(), 1);
     assert_eq!(table_types.num_rows(), 2);
@@ -189,7 +189,7 @@ fn test_connection_get_table_types() {
 fn test_connection_get_info() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
 
     let info = concat_reader(connection.get_info(None).unwrap());
     assert_eq!(info.num_columns(), 2);
@@ -213,7 +213,7 @@ fn test_connection_get_info() {
 fn test_connection_get_objects() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
 
     let objects = concat_reader(
         connection
@@ -258,7 +258,7 @@ fn test_connection_get_objects() {
 fn test_connection_get_table_schema() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
 
     let schema = connection
         .get_table_schema(None, None, "sqlite_master")
@@ -279,7 +279,7 @@ fn test_connection_get_table_schema() {
 fn test_connection_get_statistics_name() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
     assert!(connection.get_statistics_name().is_err());
 }
 
@@ -287,7 +287,7 @@ fn test_connection_get_statistics_name() {
 fn test_connection_get_statistics() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
+    let connection = database.new_connection().unwrap();
     assert!(connection.get_statistics(None, None, None, false).is_err());
 }
 
@@ -295,8 +295,8 @@ fn test_connection_get_statistics() {
 fn test_statement() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     statement
         .set_option(
@@ -317,8 +317,8 @@ fn test_statement() {
 fn test_statement_prepare() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
     let error = statement.prepare().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::InvalidState);
 }
@@ -327,8 +327,8 @@ fn test_statement_prepare() {
 fn test_statement_set_sql_query_and_prepare() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
     statement.set_sql_query("select 42").unwrap();
     statement.prepare().unwrap();
 }
@@ -337,8 +337,8 @@ fn test_statement_set_sql_query_and_prepare() {
 fn test_statement_set_substrait_plan() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
     let error = statement.set_substrait_plan(b"").unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
@@ -347,8 +347,8 @@ fn test_statement_set_substrait_plan() {
 fn test_statement_get_parameters_schema() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let error = statement.get_parameters_schema().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::InvalidState);
@@ -362,8 +362,8 @@ fn test_statement_get_parameters_schema() {
 fn test_statement_execute() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     assert!(statement.execute().is_err());
 
@@ -377,8 +377,8 @@ fn test_statement_execute() {
 fn test_statement_execute_update() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     assert!(statement.execute_update().is_err());
 
@@ -394,8 +394,8 @@ fn test_statement_execute_update() {
 fn test_statement_execute_schema() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_schema().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
@@ -405,8 +405,8 @@ fn test_statement_execute_schema() {
 fn test_statement_execute_partitions() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_partitions().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
@@ -416,8 +416,8 @@ fn test_statement_execute_partitions() {
 fn test_statement_cancel() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let error = statement.cancel().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
@@ -427,8 +427,8 @@ fn test_statement_cancel() {
 fn test_statement_bind() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, true)]));
     let columns: Vec<Arc<dyn Array>> = vec![Arc::new(Int64Array::from(vec![1, 2, 3]))];
@@ -441,8 +441,8 @@ fn test_statement_bind() {
 fn test_statement_bind_stream() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, true)]));
     let columns: Vec<Arc<dyn Array>> = vec![Arc::new(Int64Array::from(vec![1, 2, 3]))];
@@ -456,8 +456,8 @@ fn test_statement_bind_stream() {
 fn test_ingestion_roundtrip() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let mut connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
 
     let batch = sample_batch();
 

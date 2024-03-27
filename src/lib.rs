@@ -12,7 +12,7 @@ pub trait Optionable {
     type Key: AsRef<str>;
 
     /// Sets a post-init database option.
-    fn set_option(&mut self, key: Self::Key, value: options::OptionValue) -> Result<()>;
+    fn set_option(&self, key: Self::Key, value: options::OptionValue) -> Result<()>;
 
     /// Gets a database option value by key.
     fn get_option_string(&self, key: Self::Key) -> Result<String>;
@@ -77,12 +77,12 @@ pub trait Connection: Optionable {
         Self: 'connection;
 
     /// Allocates and initializes a new statement.
-    fn new_statement(&mut self) -> Result<Self::StatementType<'_>>;
+    fn new_statement(&self) -> Result<Self::StatementType<'_>>;
 
-    fn cancel(&mut self) -> Result<()>;
-    fn get_info(&mut self, codes: Option<&[options::InfoCode]>) -> Result<impl RecordBatchReader>;
+    fn cancel(&self) -> Result<()>;
+    fn get_info(&self, codes: Option<&[options::InfoCode]>) -> Result<impl RecordBatchReader>;
     fn get_objects(
-        &mut self,
+        &self,
         depth: options::ObjectDepth,
         catalog: Option<&str>,
         db_schema: Option<&str>,
@@ -91,37 +91,37 @@ pub trait Connection: Optionable {
         column_name: Option<&str>,
     ) -> Result<impl RecordBatchReader>;
     fn get_table_schema(
-        &mut self,
+        &self,
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: &str,
     ) -> Result<Schema>;
-    fn get_table_types(&mut self) -> Result<impl RecordBatchReader>;
-    fn get_statistics_name(&mut self) -> Result<impl RecordBatchReader>;
+    fn get_table_types(&self) -> Result<impl RecordBatchReader>;
+    fn get_statistics_name(&self) -> Result<impl RecordBatchReader>;
     fn get_statistics(
-        &mut self,
+        &self,
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: Option<&str>,
         approximate: bool,
     ) -> Result<impl RecordBatchReader>;
-    fn commit(&mut self) -> Result<()>;
-    fn rollback(&mut self) -> Result<()>;
-    fn read_partition(&mut self, partition: &[u8]) -> Result<impl RecordBatchReader>;
+    fn commit(&self) -> Result<()>;
+    fn rollback(&self) -> Result<()>;
+    fn read_partition(&self, partition: &[u8]) -> Result<impl RecordBatchReader>;
 }
 
 pub trait Statement: Optionable {
-    fn bind(&mut self, batch: RecordBatch) -> Result<()>;
-    fn bind_stream(&mut self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()>;
-    fn execute(&mut self) -> Result<impl RecordBatchReader>;
-    fn execute_update(&mut self) -> Result<i64>;
-    fn execute_schema(&mut self) -> Result<Schema>;
-    fn execute_partitions(&mut self) -> Result<Partitions>;
-    fn get_parameters_schema(&mut self) -> Result<Schema>;
-    fn prepare(&mut self) -> Result<()>;
-    fn set_sql_query(&mut self, query: &str) -> Result<()>;
-    fn set_substrait_plan(&mut self, plan: &[u8]) -> Result<()>;
-    fn cancel(&mut self) -> Result<()>;
+    fn bind(&self, batch: RecordBatch) -> Result<()>;
+    fn bind_stream(&self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()>;
+    fn execute(&self) -> Result<impl RecordBatchReader>;
+    fn execute_update(&self) -> Result<i64>;
+    fn execute_schema(&self) -> Result<Schema>;
+    fn execute_partitions(&self) -> Result<Partitions>;
+    fn get_parameters_schema(&self) -> Result<Schema>;
+    fn prepare(&self) -> Result<()>;
+    fn set_sql_query(&self, query: &str) -> Result<()>;
+    fn set_substrait_plan(&self, plan: &[u8]) -> Result<()>;
+    fn cancel(&self) -> Result<()>;
 }
 
 type Partitions = Vec<Vec<u8>>;
