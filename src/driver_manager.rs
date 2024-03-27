@@ -246,7 +246,7 @@ pub struct ManagedDatabase<'driver> {
 }
 impl<'driver> Optionable for ManagedDatabase<'driver> {
     type Key = options::DatabaseOptionKey;
-    fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
+    fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.driver.driver.lock().unwrap();
         let method = driver_method!(driver, DatabaseGetOptionBytes);
         let mut database = self.database.lock().unwrap();
@@ -258,7 +258,7 @@ impl<'driver> Optionable for ManagedDatabase<'driver> {
         };
         get_option_bytes(key, populate)
     }
-    fn get_option_double(&mut self, key: Self::Key) -> Result<f64> {
+    fn get_option_double(&self, key: Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
@@ -269,7 +269,7 @@ impl<'driver> Optionable for ManagedDatabase<'driver> {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_int(&mut self, key: Self::Key) -> Result<i64> {
+    fn get_option_int(&self, key: Self::Key) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
@@ -280,7 +280,7 @@ impl<'driver> Optionable for ManagedDatabase<'driver> {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
+    fn get_option_string(&self, key: Self::Key) -> Result<String> {
         let driver = self.driver.driver.lock().unwrap();
         let method = driver_method!(driver, DatabaseGetOption);
         let mut database = self.database.lock().unwrap();
@@ -406,7 +406,7 @@ pub struct ManagedConnection<'driver, 'database> {
 }
 impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
     type Key = options::ConnectionOptionKey;
-    fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
+    fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOptionBytes);
         let mut connection = self.connection.lock().unwrap();
@@ -418,7 +418,7 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         };
         get_option_bytes(key, populate)
     }
-    fn get_option_double(&mut self, key: Self::Key) -> Result<f64> {
+    fn get_option_double(&self, key: Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
@@ -430,7 +430,7 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_int(&mut self, key: Self::Key) -> Result<i64> {
+    fn get_option_int(&self, key: Self::Key) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
@@ -442,7 +442,7 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
+    fn get_option_string(&self, key: Self::Key) -> Result<String> {
         let driver = self.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOption);
         let mut connection = self.connection.lock().unwrap();
@@ -944,7 +944,7 @@ impl<'driver, 'database, 'connection> Optionable
     for ManagedStatement<'driver, 'database, 'connection>
 {
     type Key = options::StatementOptionKey;
-    fn get_option_bytes(&mut self, key: Self::Key) -> Result<Vec<u8>> {
+    fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOptionBytes);
         let mut statement = self.statement.lock().unwrap();
@@ -956,7 +956,7 @@ impl<'driver, 'database, 'connection> Optionable
         };
         get_option_bytes(key, populate)
     }
-    fn get_option_double(&mut self, key: Self::Key) -> Result<f64> {
+    fn get_option_double(&self, key: Self::Key) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
@@ -967,7 +967,7 @@ impl<'driver, 'database, 'connection> Optionable
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_int(&mut self, key: Self::Key) -> Result<i64> {
+    fn get_option_int(&self, key: Self::Key) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
@@ -978,7 +978,7 @@ impl<'driver, 'database, 'connection> Optionable
         check_status(status, error)?;
         Ok(value)
     }
-    fn get_option_string(&mut self, key: Self::Key) -> Result<String> {
+    fn get_option_string(&self, key: Self::Key) -> Result<String> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOption);
         let mut statement = self.statement.lock().unwrap();
