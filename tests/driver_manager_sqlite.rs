@@ -499,7 +499,3 @@ impl RecordBatchReader for SingleBatchReader {
         self.schema.clone()
     }
 }
-
-// TODOs
-// - Test `get_option_*` (needs an 1.1.0 driver)
-// - Test non-string setting options (needs an 1.1.0 driver)
