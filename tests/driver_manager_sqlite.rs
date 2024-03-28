@@ -8,8 +8,7 @@ use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use adbc_rs::driver_manager::{DriverManager, ManagedDatabase};
 use adbc_rs::options::{
-    AdbcVersion, ConnectionOptionKey, DatabaseOptionKey, InfoCode, ObjectDepth, OptionValue,
-    StatementOptionKey,
+    AdbcVersion, ConnectionOptionKey, DatabaseOptionKey, InfoCode, ObjectDepth, StatementOptionKey,
 };
 use adbc_rs::{error::Status, Driver, Optionable};
 use adbc_rs::{Connection, Database, Statement};
@@ -21,10 +20,7 @@ fn get_driver() -> DriverManager {
 fn get_database(driver: &DriverManager) -> ManagedDatabase {
     // By passing in ":memory:" for uri, we create a distinct temporary database for each
     // test, preventing noisy neighbor issues on tests.
-    let opts = [(
-        DatabaseOptionKey::Uri,
-        OptionValue::String(":memory:".into()),
-    )];
+    let opts = [(DatabaseOptionKey::Uri, ":memory:".into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap()
 }
 
@@ -41,17 +37,11 @@ fn test_database() {
 
     assert!(database.new_connection().is_ok());
 
-    let opts = [(
-        ConnectionOptionKey::AutoCommit,
-        OptionValue::String("true".into()),
-    )];
+    let opts = [(ConnectionOptionKey::AutoCommit, "true".into())];
     database.new_connection_with_opts(opts.into_iter()).unwrap();
 
     // Unknown connection option
-    let opts = [(
-        ConnectionOptionKey::Other("unknown".into()),
-        OptionValue::String("".into()),
-    )];
+    let opts = [(ConnectionOptionKey::Other("unknown".into()), "".into())];
     assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
 }
 
@@ -88,18 +78,12 @@ fn test_connection() {
     let connection = database.new_connection().unwrap();
 
     assert!(connection
-        .set_option(
-            ConnectionOptionKey::AutoCommit,
-            OptionValue::String("true".into())
-        )
+        .set_option(ConnectionOptionKey::AutoCommit, "true".into())
         .is_ok());
 
     // Unknown connection option
     assert!(connection
-        .set_option(
-            ConnectionOptionKey::Other("unknown".into()),
-            OptionValue::String("".into())
-        )
+        .set_option(ConnectionOptionKey::Other("unknown".into()), "".into())
         .is_err());
 
     assert!(connection.new_statement().is_ok());
@@ -155,10 +139,7 @@ fn test_connection_commit_rollback() {
     assert_eq!(error.status.unwrap(), Status::InvalidState);
 
     connection
-        .set_option(
-            ConnectionOptionKey::AutoCommit,
-            OptionValue::String("false".into()),
-        )
+        .set_option(ConnectionOptionKey::AutoCommit, "false".into())
         .unwrap();
 
     connection.commit().unwrap();
@@ -301,14 +282,14 @@ fn test_statement() {
     statement
         .set_option(
             StatementOptionKey::IngestMode,
-            OptionValue::String("adbc.ingest.mode.create".into()),
+            "adbc.ingest.mode.create".into(),
         )
         .unwrap();
 
     statement
         .set_option(
             StatementOptionKey::Other("unknown".into()),
-            OptionValue::String("unknown.value".into()),
+            "unknown.value".into(),
         )
         .unwrap_err();
 }
@@ -463,10 +444,7 @@ fn test_ingestion_roundtrip() {
 
     // Ingest
     statement
-        .set_option(
-            StatementOptionKey::TargetTable,
-            OptionValue::String("my_table".into()),
-        )
+        .set_option(StatementOptionKey::TargetTable, "my_table".into())
         .unwrap();
 
     statement.bind(batch.clone()).unwrap();
