@@ -48,6 +48,8 @@ pub struct FFI_AdbcDatabase {
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
 
+unsafe impl Send for FFI_AdbcDatabase {}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_AdbcConnection {
@@ -58,6 +60,8 @@ pub struct FFI_AdbcConnection {
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
 
+unsafe impl Send for FFI_AdbcConnection {}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_AdbcStatement {
@@ -67,6 +71,8 @@ pub struct FFI_AdbcStatement {
     /// The associated driver (used by the driver manager to help track state).
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
+
+unsafe impl Send for FFI_AdbcStatement {}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -169,6 +175,8 @@ pub struct FFI_AdbcDriver {
     pub(crate) StatementSetOptionDouble: Option<methods::FuncStatementSetOptionDouble>,
     pub(crate) StatementSetOptionInt: Option<methods::FuncStatementSetOptionInt>,
 }
+
+unsafe impl Send for FFI_AdbcDriver {}
 
 #[macro_export]
 macro_rules! driver_method {
