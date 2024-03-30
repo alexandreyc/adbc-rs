@@ -1,3 +1,30 @@
+//! Load and use ADBC drivers.
+//!
+//! The driver manager provides an implementation of the ADBC interface which
+//! uses FFI to wrap an object file implementation of
+//! [`adbc.h`](https://github.com/apache/arrow-adbc/blob/main/adbc.h).
+//!
+//! There are three ways that drivers can be loaded:
+//! 1. By statically linking the driver implementation using
+//! [DriverManager::load_static].
+//! 2. By dynamically linking the driver implementation using
+//! [DriverManager::load_static].
+//! 3. By loading the driver implementation at runtime (with
+//! `dlopen/LoadLibrary`) using [DriverManager::load_dynamic].
+//!
+//! Drivers are initialized using a function provided by the driver as a main
+//! entrypoint, canonically called `AdbcDriverInit`. Although many will use a
+//! different name to support statically linking multiple drivers within the
+//! same program.
+//!
+//! # Examples
+//!
+//! TODO
+//!
+//! # Using across threads
+//!
+//! TODO
+
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::ops::{Deref, DerefMut};
@@ -9,12 +36,12 @@ use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
 use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
-use crate::{driver_method, ffi, Optionable};
 use crate::{
     error::Status,
     options::{self, AdbcVersion, OptionValue},
     Error, Result,
 };
+use crate::{ffi, ffi::types::driver_method, Optionable};
 use crate::{Connection, Database, Driver, Statement};
 
 const ERR_ONLY_STRING_OPT: &str = "Only string option value are supported with ADBC 1.0.0";
@@ -22,7 +49,10 @@ const ERR_CANCEL_UNSUPPORTED: &str =
     "Canceling connection or statement is not supported with ADBC 1.0.0";
 const ERR_STATISTICS_UNSUPPORTED: &str = "Statistics are not supported with ADBC 1.0.0";
 
-pub fn check_status(status: ffi::FFI_AdbcStatusCode, error: ffi::FFI_AdbcError) -> Result<()> {
+pub(crate) fn check_status(
+    status: ffi::FFI_AdbcStatusCode,
+    error: ffi::FFI_AdbcError,
+) -> Result<()> {
     match status {
         ffi::constants::ADBC_STATUS_OK => Ok(()),
         _ => {
@@ -33,15 +63,15 @@ pub fn check_status(status: ffi::FFI_AdbcStatusCode, error: ffi::FFI_AdbcError) 
     }
 }
 
-/// If applicable, keeps the loaded dynamic library in scope as long as the
-/// FFI_AdbcDriver so that all it's function pointers remain valid.
+/// Implementation of [Driver].
 pub struct DriverManager {
     driver: Arc<Mutex<ffi::FFI_AdbcDriver>>,
     version: AdbcVersion, // Driver version
     _library: Option<libloading::Library>,
 }
 impl DriverManager {
-    pub fn load_static(init: &ffi::FFI_AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
+    /// Load a driver from an initialization function.
+    pub fn load_static(init: &crate::AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
         let driver = Self::load_impl(init, version)?;
         Ok(DriverManager {
             driver: Arc::new(Mutex::new(driver)),
@@ -50,6 +80,14 @@ impl DriverManager {
         })
     }
 
+    /// Load a driver from a dynamic library.
+    ///
+    /// Will attempt to load the dynamic library with the given `name`, find the
+    /// symbol with name `entrypoint` (defaults to `AdbcDriverInit` if `None`),
+    /// and then call create the driver using the resolved function.
+    ///
+    /// The `name` should not include any platform-specific prefixes or suffixes.
+    /// For example, use `adbc_driver_sqlite` rather than `libadbc_driver_sqlite.so`.
     pub fn load_dynamic(
         name: &str,
         entrypoint: Option<&[u8]>,
@@ -240,6 +278,7 @@ where
     Ok(value.to_string_lossy().to_string())
 }
 
+/// Implementation of [Database].
 pub struct ManagedDatabase<'driver> {
     database: Arc<Mutex<ffi::FFI_AdbcDatabase>>,
     driver: &'driver DriverManager,
@@ -400,6 +439,7 @@ fn set_option_connection(
     check_status(status, error)
 }
 
+/// Implementation of [Connection].
 pub struct ManagedConnection<'driver, 'database> {
     connection: RefCell<ffi::FFI_AdbcConnection>,
     version: AdbcVersion,
@@ -815,6 +855,7 @@ fn set_option_statement(
     check_status(status, error)
 }
 
+/// Implementation of [Statement].
 pub struct ManagedStatement<'driver, 'database, 'connection> {
     statement: RefCell<ffi::FFI_AdbcStatement>,
     version: AdbcVersion,

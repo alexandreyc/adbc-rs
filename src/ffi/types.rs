@@ -11,6 +11,7 @@ use crate::{error, ffi, Partitions};
 
 pub type FFI_AdbcStatusCode = u8;
 
+/// A driver initialization function.
 pub type FFI_AdbcDriverInitFunc =
     unsafe extern "C" fn(c_int, *mut c_void, *mut FFI_AdbcError) -> FFI_AdbcStatusCode;
 
@@ -174,7 +175,6 @@ pub struct FFI_AdbcDriver {
 
 unsafe impl Send for FFI_AdbcDriver {}
 
-#[macro_export]
 macro_rules! driver_method {
     ($driver:expr, $method:ident) => {
         $driver
@@ -183,6 +183,8 @@ macro_rules! driver_method {
             .unwrap_or(crate::ffi::methods::$method)
     };
 }
+
+pub(crate) use driver_method;
 
 impl From<FFI_AdbcStatusCode> for error::Status {
     fn from(value: FFI_AdbcStatusCode) -> Self {

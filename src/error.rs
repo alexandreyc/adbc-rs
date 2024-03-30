@@ -1,35 +1,69 @@
+//! Error and result types.
+
 use std::{ffi::NulError, fmt::Display};
 
 use arrow::error::ArrowError;
 
+/// Status of an operation.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Status {
-    Ok,               // ADBC_STATUS_OK
-    Unknown,          // ADBC_STATUS_UNKNOWN
-    NotImplemented,   // ADBC_STATUS_NOT_IMPLEMENTED
-    NotFound,         // ADBC_STATUS_NOT_FOUND
-    AlreadyExists,    // ADBC_STATUS_ALREADY_EXISTS
-    InvalidArguments, // ADBC_STATUS_INVALID_ARGUMENT
-    InvalidState,     // ADBC_STATUS_INVALID_STATE
-    InvalidData,      // ADBC_STATUS_INVALID_DATA
-    Integrity,        // ADBC_STATUS_INTEGRITY
-    Internal,         // ADBC_STATUS_INTERNAL
-    IO,               // ADBC_STATUS_IO
-    Cancelled,        // ADBC_STATUS_CANCELLED
-    Timeout,          // ADBC_STATUS_TIMEOUT
-    Unauthenticated,  // ADBC_STATUS_UNAUTHENTICATED
-    Unauthorized,     // ADBC_STATUS_UNAUTHORIZED
+    /// No error.
+    Ok,
+    /// An unknown error occurred.
+    Unknown,
+    /// The operation is not implemented or supported.
+    NotImplemented,
+    /// A requested resource was not found.
+    NotFound,
+    /// A requested resource already exists.
+    AlreadyExists,
+    /// The arguments are invalid, likely a programming error.
+    /// For instance, they may be of the wrong format, or out of range.
+    InvalidArguments,
+    /// The preconditions for the operation are not met, likely a programming error.
+    /// For instance, the object may be uninitialized, or may have not
+    /// been fully configured.
+    InvalidState,
+    /// Invalid data was processed (not a programming error).
+    /// For instance, a division by zero may have occurred during query
+    /// execution.
+    InvalidData,
+    // The database's integrity was affected.
+    /// For instance, a foreign key check may have failed, or a uniqueness
+    /// constraint may have been violated.
+    Integrity,
+    /// An error internal to the driver or database occurred.
+    Internal,
+    /// An I/O error occurred.
+    /// For instance, a remote service may be unavailable.
+    IO,
+    /// The operation was cancelled, not due to a timeout.
+    Cancelled,
+    /// The operation was cancelled due to a timeout.
+    Timeout,
+    /// Authentication failed.
+    Unauthenticated,
+    /// The client is not authorized to perform the given operation.
+    Unauthorized,
 }
 
+/// An ADBC error.
 #[derive(Debug)]
 pub struct Error {
+    /// The error message.
     pub message: Option<String>,
+    /// The status of the operation.
     pub status: Option<Status>,
+    /// A vendor-specific error code, if applicable.
     pub vendor_code: i32,
+    /// A SQLSTATE error code, if provided, as defined by the SQL:2003 standard.
+    /// If not set, it should be set to `\0\0\0\0\0`.
     pub sqlstate: [i8; 5],
+    /// Additional metadata.
     pub details: Option<Vec<(String, Vec<u8>)>>,
 }
 
+/// Result type wrapping [Error].
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl Error {
