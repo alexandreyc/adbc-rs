@@ -2,8 +2,9 @@
 name = "adbc-rs"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Alexandre Crayssac <alexandre@crayssac.net>"]
+license = "Apache-2.0"
+license-file = "LICENSE.txt"
 
 [dependencies]
 arrow = { version = "50.0.0", default-features = false, features = ["ffi"] }
