@@ -28,7 +28,7 @@ pub enum Status {
     /// For instance, a division by zero may have occurred during query
     /// execution.
     InvalidData,
-    // The database's integrity was affected.
+    /// The database's integrity was affected.
     /// For instance, a foreign key check may have failed, or a uniqueness
     /// constraint may have been violated.
     Integrity,
