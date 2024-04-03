@@ -17,13 +17,57 @@
 //! different name to support statically linking multiple drivers within the
 //! same program.
 //!
-//! # Examples
+//! ## Example
 //!
-//! TODO
+//! ```rust
+//! # use std::sync::Arc;
+//! # use arrow::{
+//! #     array::{Array, StringArray, Int64Array, Float64Array},
+//! #     record_batch::{RecordBatch, RecordBatchReader},
+//! #     datatypes::{Field, Schema, DataType},
+//! #     compute::concat_batches,
+//! # };
+//! # use adbc_rs::{
+//! #     driver_manager::DriverManager,
+//! #     options::{AdbcVersion, DatabaseOptionKey, StatementOptionKey},
+//! #     Connection, Database, Driver, Statement, Optionable
+//! # };
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let opts = [(DatabaseOptionKey::Uri, ":memory:".into())];
+//! let driver = DriverManager::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100)?;
+//! let database = driver.new_database_with_opts(opts.into_iter())?;
+//! let connection = database.new_connection()?;
+//! let statement = connection.new_statement()?;
 //!
-//! # Using across threads
+//! // Define some data.
+//! # let columns: Vec<Arc<dyn Array>> = vec![
+//! #     Arc::new(Int64Array::from(vec![1, 2, 3, 4])),
+//! #     Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0, 4.0])),
+//! #     Arc::new(StringArray::from(vec!["a", "b", "c", "d"])),
+//! # ];
+//! # let schema = Schema::new(vec![
+//! #     Field::new("a", DataType::Int64, true),
+//! #     Field::new("b", DataType::Float64, true),
+//! #     Field::new("c", DataType::Utf8, true),
+//! # ]);
+//! let input: RecordBatch = RecordBatch::try_new(Arc::new(schema), columns)?;
 //!
-//! TODO
+//! // Ingest data.
+//! statement.set_option(StatementOptionKey::TargetTable, "my_table".into())?;
+//! statement.bind(input.clone())?;
+//! statement.execute_update()?;
+//!
+//! // Extract data.
+//! statement.set_sql_query("select * from my_table")?;
+//! let output = statement.execute()?;
+//! let schema = output.schema();
+//! let output: Result<Vec<RecordBatch>, _> = output.collect();
+//! let output = concat_batches(&schema, &output?)?;
+//! assert_eq!(input, output);
+//!
+//! # Ok(())
+//! # }
+//! ```
 
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
