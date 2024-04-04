@@ -715,10 +715,10 @@ impl Connection for ManagedConnection {
         table_type: Option<&[&str]>,
         column_name: Option<&str>,
     ) -> Result<impl RecordBatchReader> {
-        let catalog = catalog.map(|c| CString::new(c)).transpose()?;
-        let db_schema = db_schema.map(|c| CString::new(c)).transpose()?;
-        let table_name = table_name.map(|c| CString::new(c)).transpose()?;
-        let column_name = column_name.map(|c| CString::new(c)).transpose()?;
+        let catalog = catalog.map(CString::new).transpose()?;
+        let db_schema = db_schema.map(CString::new).transpose()?;
+        let table_name = table_name.map(CString::new).transpose()?;
+        let column_name = column_name.map(CString::new).transpose()?;
         let mut table_type = table_type
             .map(|t| {
                 t.iter()
@@ -779,9 +779,9 @@ impl Connection for ManagedConnection {
             ));
         }
 
-        let catalog = catalog.map(|c| CString::new(c)).transpose()?;
-        let db_schema = db_schema.map(|c| CString::new(c)).transpose()?;
-        let table_name = table_name.map(|c| CString::new(c)).transpose()?;
+        let catalog = catalog.map(CString::new).transpose()?;
+        let db_schema = db_schema.map(CString::new).transpose()?;
+        let table_name = table_name.map(CString::new).transpose()?;
 
         let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
         let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
@@ -836,8 +836,8 @@ impl Connection for ManagedConnection {
         db_schema: Option<&str>,
         table_name: &str,
     ) -> Result<arrow::datatypes::Schema> {
-        let catalog = catalog.map(|c| CString::new(c)).transpose()?;
-        let db_schema = db_schema.map(|c| CString::new(c)).transpose()?;
+        let catalog = catalog.map(CString::new).transpose()?;
+        let db_schema = db_schema.map(CString::new).transpose()?;
         let table_name = CString::new(table_name)?;
 
         let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());

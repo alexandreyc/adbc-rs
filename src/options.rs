@@ -171,7 +171,7 @@ impl AsRef<str> for DatabaseOptionKey {
             Self::Uri => constants::ADBC_OPTION_URI,
             Self::Username => constants::ADBC_OPTION_USERNAME,
             Self::Password => constants::ADBC_OPTION_PASSWORD,
-            Self::Other(key) => &key,
+            Self::Other(key) => key,
         }
     }
 }
@@ -204,7 +204,7 @@ impl AsRef<str> for ConnectionOptionKey {
             Self::CurrentCatalog => constants::ADBC_CONNECTION_OPTION_CURRENT_CATALOG,
             Self::CurrentSchema => constants::ADBC_CONNECTION_OPTION_CURRENT_DB_SCHEMA,
             Self::IsolationLevel => constants::ADBC_CONNECTION_OPTION_ISOLATION_LEVEL,
-            Self::Other(key) => &key,
+            Self::Other(key) => key,
         }
     }
 }
@@ -266,7 +266,7 @@ impl AsRef<str> for StatementOptionKey {
             Self::Incremental => constants::ADBC_STATEMENT_OPTION_INCREMENTAL,
             Self::Progress => constants::ADBC_STATEMENT_OPTION_PROGRESS,
             Self::MaxProgress => constants::ADBC_STATEMENT_OPTION_MAX_PROGRESS,
-            Self::Other(key) => &key,
+            Self::Other(key) => key,
         }
     }
 }
