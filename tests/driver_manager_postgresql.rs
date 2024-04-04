@@ -1,3 +1,5 @@
+use std::env;
+
 use arrow::datatypes::{DataType, Field, Schema};
 
 use adbc_rs::driver_manager::{DriverManager, ManagedDatabase};
@@ -7,21 +9,25 @@ use adbc_rs::{Connection, Database, Statement};
 
 mod common;
 
-const URI: &str = "postgres://al:@127.0.0.1:5432/postgres";
-
 fn get_driver() -> DriverManager {
     DriverManager::load_dynamic("adbc_driver_postgresql", None, AdbcVersion::V110).unwrap()
 }
 
+fn get_uri() -> String {
+    let uri = env::var("TEST_ADBC_POSTGRESQL_URI")
+        .expect("environment variable TEST_ADBC_POSTGRESQL_URI is not defined");
+    uri
+}
+
 fn get_database(driver: &DriverManager) -> ManagedDatabase {
-    let opts = [(OptionDatabase::Uri, URI.into())];
+    let opts = [(OptionDatabase::Uri, get_uri().into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap()
 }
 
 #[test]
 fn test_driver() {
     let driver = get_driver();
-    common::test_driver(&driver, URI);
+    common::test_driver(&driver, &get_uri());
     // PostgreSQL's driver requires option "uri" to be set before creating a connection.
     assert!(driver.new_database().is_err());
 }
