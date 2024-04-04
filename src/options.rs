@@ -142,7 +142,7 @@ impl From<ObjectDepth> for c_int {
 }
 
 /// Database option key.
-pub enum DatabaseOptionKey {
+pub enum OptionDatabase {
     /// Canonical option key for URIs.
     ///
     /// # Since
@@ -165,7 +165,7 @@ pub enum DatabaseOptionKey {
     Other(String),
 }
 
-impl AsRef<str> for DatabaseOptionKey {
+impl AsRef<str> for OptionDatabase {
     fn as_ref(&self) -> &str {
         match self {
             Self::Uri => constants::ADBC_OPTION_URI,
@@ -177,7 +177,7 @@ impl AsRef<str> for DatabaseOptionKey {
 }
 
 /// Connection option key.
-pub enum ConnectionOptionKey {
+pub enum OptionConnection {
     /// Whether autocommit is enabled.
     AutoCommit,
     /// Whether the current connection should be restricted to being read-only.
@@ -196,7 +196,7 @@ pub enum ConnectionOptionKey {
     Other(String),
 }
 
-impl AsRef<str> for ConnectionOptionKey {
+impl AsRef<str> for OptionConnection {
     fn as_ref(&self) -> &str {
         match self {
             Self::AutoCommit => constants::ADBC_CONNECTION_OPTION_AUTOCOMMIT,
@@ -210,7 +210,7 @@ impl AsRef<str> for ConnectionOptionKey {
 }
 
 /// Statement option key.
-pub enum StatementOptionKey {
+pub enum OptionStatement {
     /// The ingest mode for a bulk insert. See [IngestMode].
     IngestMode,
     /// The name of the target table for a bulk insert.
@@ -234,7 +234,7 @@ pub enum StatementOptionKey {
     /// The value is not necessarily in any particular range or have any
     /// particular units. For example, it might be a percentage, bytes of data,
     /// rows of data, number of workers, etc. The max value can be retrieved
-    /// via [StatementOptionKey::MaxProgress]. This represents the progress of
+    /// via [OptionStatement::MaxProgress]. This represents the progress of
     /// execution, not of consumption (i.e., it is independent of how much of the
     /// result set has been read by the client).
     ///
@@ -245,7 +245,7 @@ pub enum StatementOptionKey {
     /// Get the maximum progress of a query. It's a read-only option that should be
     /// read with [get_option_double][crate::Optionable::get_option_double].
     ///
-    /// This is the value of [StatementOptionKey::Progress] for a completed query.
+    /// This is the value of [OptionStatement::Progress] for a completed query.
     /// If not supported, or if the value is nonpositive, then the maximum is not
     /// known. For instance, the query may be fully streaming and the driver
     /// does not know when the result set will end.
@@ -258,7 +258,7 @@ pub enum StatementOptionKey {
     Other(String),
 }
 
-impl AsRef<str> for StatementOptionKey {
+impl AsRef<str> for OptionStatement {
     fn as_ref(&self) -> &str {
         match self {
             Self::IngestMode => constants::ADBC_INGEST_OPTION_MODE,
@@ -271,7 +271,7 @@ impl AsRef<str> for StatementOptionKey {
     }
 }
 
-/// Isolation level value for key [IsolationLevel][ConnectionOptionKey::IsolationLevel].
+/// Isolation level value for key [IsolationLevel][OptionConnection::IsolationLevel].
 pub enum IsolationLevel {
     /// Use database or driver default isolation level.
     Default,
@@ -343,7 +343,7 @@ impl From<IsolationLevel> for OptionValue {
     }
 }
 
-/// Ingestion mode value for key [IngestMode][StatementOptionKey::IngestMode].
+/// Ingestion mode value for key [IngestMode][OptionStatement::IngestMode].
 pub enum IngestMode {
     /// Create the table and insert data; error if the table exists.
     Create,

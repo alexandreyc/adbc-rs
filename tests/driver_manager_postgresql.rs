@@ -1,7 +1,7 @@
 use arrow::datatypes::{DataType, Field, Schema};
 
 use adbc_rs::driver_manager::{DriverManager, ManagedDatabase};
-use adbc_rs::options::{AdbcVersion, ConnectionOptionKey, DatabaseOptionKey, StatementOptionKey};
+use adbc_rs::options::{AdbcVersion, OptionConnection, OptionDatabase, OptionStatement};
 use adbc_rs::{error::Status, Driver, Optionable};
 use adbc_rs::{Connection, Database, Statement};
 
@@ -14,7 +14,7 @@ fn get_driver() -> DriverManager {
 }
 
 fn get_database(driver: &DriverManager) -> ManagedDatabase {
-    let opts = [(DatabaseOptionKey::Uri, URI.into())];
+    let opts = [(OptionDatabase::Uri, URI.into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap()
 }
 
@@ -38,40 +38,34 @@ fn test_database_get_set_option() {
     let driver = get_driver();
     let database = get_database(&driver);
 
-    let error = database
-        .get_option_bytes(DatabaseOptionKey::Uri)
-        .unwrap_err();
+    let error = database.get_option_bytes(OptionDatabase::Uri).unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
-    let error = database
-        .get_option_string(DatabaseOptionKey::Uri)
-        .unwrap_err();
+    let error = database.get_option_string(OptionDatabase::Uri).unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
-    let error = database.get_option_int(DatabaseOptionKey::Uri).unwrap_err();
+    let error = database.get_option_int(OptionDatabase::Uri).unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
-    let error = database
-        .get_option_double(DatabaseOptionKey::Uri)
-        .unwrap_err();
+    let error = database.get_option_double(OptionDatabase::Uri).unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
     database
-        .set_option(DatabaseOptionKey::Uri, "uri".into())
+        .set_option(OptionDatabase::Uri, "uri".into())
         .unwrap();
 
     let error = database
-        .set_option(DatabaseOptionKey::Uri, b"uri".into())
+        .set_option(OptionDatabase::Uri, b"uri".into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = database
-        .set_option(DatabaseOptionKey::Uri, 42.into())
+        .set_option(OptionDatabase::Uri, 42.into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = database
-        .set_option(DatabaseOptionKey::Uri, 42.0.into())
+        .set_option(OptionDatabase::Uri, 42.0.into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
@@ -91,46 +85,46 @@ fn test_connection_get_set_option() {
     let connection = database.new_connection().unwrap();
 
     let value = connection
-        .get_option_string(ConnectionOptionKey::AutoCommit)
+        .get_option_string(OptionConnection::AutoCommit)
         .unwrap();
     assert_eq!(value, "true");
 
     let error = connection
-        .get_option_bytes(ConnectionOptionKey::AutoCommit)
+        .get_option_bytes(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
     let error = connection
-        .get_option_int(ConnectionOptionKey::AutoCommit)
+        .get_option_int(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
     let error = connection
-        .get_option_double(ConnectionOptionKey::AutoCommit)
+        .get_option_double(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
     let value = connection
-        .get_option_string(ConnectionOptionKey::CurrentSchema)
+        .get_option_string(OptionConnection::CurrentSchema)
         .unwrap();
     assert_eq!(value, "public");
 
     connection
-        .set_option(ConnectionOptionKey::CurrentSchema, "my_schema".into())
+        .set_option(OptionConnection::CurrentSchema, "my_schema".into())
         .unwrap();
 
     let error = connection
-        .set_option(ConnectionOptionKey::CurrentSchema, b"my_schema".into())
+        .set_option(OptionConnection::CurrentSchema, b"my_schema".into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = connection
-        .set_option(ConnectionOptionKey::CurrentSchema, 42.into())
+        .set_option(OptionConnection::CurrentSchema, 42.into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = connection
-        .set_option(ConnectionOptionKey::CurrentSchema, 42.0.into())
+        .set_option(OptionConnection::CurrentSchema, 42.0.into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
@@ -236,43 +230,43 @@ fn test_statement_get_set_option() {
     let statement = connection.new_statement().unwrap();
 
     let error = statement
-        .set_option(StatementOptionKey::TargetTable, b"table".into())
+        .set_option(OptionStatement::TargetTable, b"table".into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = statement
-        .set_option(StatementOptionKey::TargetTable, 42.0.into())
+        .set_option(OptionStatement::TargetTable, 42.0.into())
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     statement
-        .set_option(StatementOptionKey::TargetTable, "table".into())
+        .set_option(OptionStatement::TargetTable, "table".into())
         .unwrap();
 
     statement
         .set_option(
-            StatementOptionKey::Other("adbc.postgresql.batch_size_hint_bytes".into()),
+            OptionStatement::Other("adbc.postgresql.batch_size_hint_bytes".into()),
             1024.into(),
         )
         .unwrap();
 
     let error = statement
-        .get_option_bytes(StatementOptionKey::TargetTable)
+        .get_option_bytes(OptionStatement::TargetTable)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
     let error = statement
-        .get_option_double(StatementOptionKey::TargetTable)
+        .get_option_double(OptionStatement::TargetTable)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotFound);
 
     let value = statement
-        .get_option_string(StatementOptionKey::TargetTable)
+        .get_option_string(OptionStatement::TargetTable)
         .unwrap();
     assert_eq!(value, "table");
 
     let value = statement
-        .get_option_int(StatementOptionKey::Other(
+        .get_option_int(OptionStatement::Other(
             "adbc.postgresql.batch_size_hint_bytes".into(),
         ))
         .unwrap();

@@ -1,7 +1,7 @@
 use arrow::datatypes::{Field, Schema};
 
 use adbc_rs::driver_manager::{DriverManager, ManagedDatabase};
-use adbc_rs::options::{AdbcVersion, ConnectionOptionKey, DatabaseOptionKey};
+use adbc_rs::options::{AdbcVersion, OptionConnection, OptionDatabase};
 use adbc_rs::{error::Status, Driver, Optionable};
 use adbc_rs::{Connection, Database, Statement};
 
@@ -16,7 +16,7 @@ fn get_driver() -> DriverManager {
 }
 
 fn get_database(driver: &DriverManager) -> ManagedDatabase {
-    let opts = [(DatabaseOptionKey::Uri, URI.into())];
+    let opts = [(OptionDatabase::Uri, URI.into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap()
 }
 
@@ -39,22 +39,22 @@ fn test_database_get_option() {
     let database = get_database(&driver);
 
     let error = database
-        .get_option_bytes(DatabaseOptionKey::Username)
+        .get_option_bytes(OptionDatabase::Username)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = database
-        .get_option_string(DatabaseOptionKey::Username)
+        .get_option_string(OptionDatabase::Username)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = database
-        .get_option_int(DatabaseOptionKey::Username)
+        .get_option_int(OptionDatabase::Username)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = database
-        .get_option_double(DatabaseOptionKey::Username)
+        .get_option_double(OptionDatabase::Username)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }
@@ -74,22 +74,22 @@ fn test_connection_get_option() {
     let connection = database.new_connection().unwrap();
 
     let error = connection
-        .get_option_bytes(ConnectionOptionKey::AutoCommit)
+        .get_option_bytes(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = connection
-        .get_option_string(ConnectionOptionKey::AutoCommit)
+        .get_option_string(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = connection
-        .get_option_int(ConnectionOptionKey::AutoCommit)
+        .get_option_int(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 
     let error = connection
-        .get_option_double(ConnectionOptionKey::AutoCommit)
+        .get_option_double(OptionConnection::AutoCommit)
         .unwrap_err();
     assert_eq!(error.status.unwrap(), Status::NotImplemented);
 }

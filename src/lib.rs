@@ -117,7 +117,7 @@ pub trait Database: Optionable {
 /// # Autocommit
 ///
 /// Connections should start in autocommit mode. They can be moved out by
-/// setting [options::ConnectionOptionKey::AutoCommit] to "false". Turning off
+/// setting [options::OptionConnection::AutoCommit] to "false". Turning off
 /// autocommit allows customizing the isolation level.
 pub trait Connection: Optionable {
     type StatementType: Statement;

@@ -39,11 +39,11 @@
 //! # };
 //! # use adbc_rs::{
 //! #     driver_manager::DriverManager,
-//! #     options::{AdbcVersion, DatabaseOptionKey, StatementOptionKey},
+//! #     options::{AdbcVersion, OptionDatabase, OptionStatement},
 //! #     Connection, Database, Driver, Statement, Optionable
 //! # };
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let opts = [(DatabaseOptionKey::Uri, ":memory:".into())];
+//! let opts = [(OptionDatabase::Uri, ":memory:".into())];
 //! let driver = DriverManager::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100)?;
 //! let database = driver.new_database_with_opts(opts.into_iter())?;
 //! let connection = database.new_connection()?;
@@ -63,7 +63,7 @@
 //! let input: RecordBatch = RecordBatch::try_new(Arc::new(schema), columns)?;
 //!
 //! // Ingest data.
-//! statement.set_option(StatementOptionKey::TargetTable, "my_table".into())?;
+//! statement.set_option(OptionStatement::TargetTable, "my_table".into())?;
 //! statement.bind(input.clone())?;
 //! statement.execute_update()?;
 //!
@@ -375,7 +375,7 @@ pub struct ManagedDatabase {
 }
 
 impl Optionable for ManagedDatabase {
-    type Key = options::DatabaseOptionKey;
+    type Key = options::OptionDatabase;
     fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.inner.driver.driver.lock().unwrap();
         let mut database = self.inner.database.lock().unwrap();
@@ -543,7 +543,7 @@ pub struct ManagedConnection {
 }
 
 impl Optionable for ManagedConnection {
-    type Key = options::ConnectionOptionKey;
+    type Key = options::OptionConnection;
     fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOptionBytes);
@@ -1128,7 +1128,7 @@ impl Statement for ManagedStatement {
 }
 
 impl Optionable for ManagedStatement {
-    type Key = options::StatementOptionKey;
+    type Key = options::OptionStatement;
     fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementGetOptionBytes);

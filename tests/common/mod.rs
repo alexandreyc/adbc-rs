@@ -6,7 +6,7 @@ use adbc_rs::driver_manager::{
 };
 use adbc_rs::error::Status;
 use adbc_rs::options::{
-    ConnectionOptionKey, DatabaseOptionKey, InfoCode, IngestMode, ObjectDepth, StatementOptionKey,
+    InfoCode, IngestMode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement,
 };
 use adbc_rs::{Connection, Database, Driver, Optionable, Statement};
 
@@ -66,33 +66,33 @@ pub fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
 }
 
 pub fn test_driver(driver: &DriverManager, uri: &str) {
-    let opts = [(DatabaseOptionKey::Uri, uri.into())];
+    let opts = [(OptionDatabase::Uri, uri.into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap();
 
     // Unknown database option.
-    let opts = [(DatabaseOptionKey::Other("unknown".into()), "".into())];
+    let opts = [(OptionDatabase::Other("unknown".into()), "".into())];
     assert!(driver.new_database_with_opts(opts.into_iter()).is_err());
 }
 
 pub fn test_database(database: &ManagedDatabase) {
     assert!(database.new_connection().is_ok());
 
-    let opts = [(ConnectionOptionKey::AutoCommit, "true".into())];
+    let opts = [(OptionConnection::AutoCommit, "true".into())];
     database.new_connection_with_opts(opts.into_iter()).unwrap();
 
     // Unknown connection option.
-    let opts = [(ConnectionOptionKey::Other("unknown".into()), "".into())];
+    let opts = [(OptionConnection::Other("unknown".into()), "".into())];
     assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
 }
 
 pub fn test_connection(connection: &ManagedConnection) {
     assert!(connection
-        .set_option(ConnectionOptionKey::AutoCommit, "true".into())
+        .set_option(OptionConnection::AutoCommit, "true".into())
         .is_ok());
 
     // Unknown connection option
     assert!(connection
-        .set_option(ConnectionOptionKey::Other("unknown".into()), "".into())
+        .set_option(OptionConnection::Other("unknown".into()), "".into())
         .is_err());
 
     assert!(connection.new_statement().is_ok());
@@ -106,7 +106,7 @@ pub fn test_connection_commit_rollback(connection: &ManagedConnection) {
     assert_eq!(error.status.unwrap(), Status::InvalidState);
 
     connection
-        .set_option(ConnectionOptionKey::AutoCommit, "false".into())
+        .set_option(OptionConnection::AutoCommit, "false".into())
         .unwrap();
 
     connection.commit().unwrap();
@@ -195,7 +195,7 @@ pub fn test_connection_get_table_schema(connection: &ManagedConnection) {
     const TABLE_NAME: &str = "my_super_table";
 
     connection
-        .set_option(ConnectionOptionKey::AutoCommit, "false".into())
+        .set_option(OptionConnection::AutoCommit, "false".into())
         .unwrap();
 
     let statement = connection.new_statement().unwrap();
@@ -220,12 +220,12 @@ pub fn test_connection_get_table_schema(connection: &ManagedConnection) {
 
 pub fn test_statement(statement: &ManagedStatement) {
     statement
-        .set_option(StatementOptionKey::IngestMode, IngestMode::Create.into())
+        .set_option(OptionStatement::IngestMode, IngestMode::Create.into())
         .unwrap();
 
     statement
         .set_option(
-            StatementOptionKey::Other("unknown".into()),
+            OptionStatement::Other("unknown".into()),
             "unknown.value".into(),
         )
         .unwrap_err();
@@ -260,7 +260,7 @@ pub fn test_statement_execute_update(connection: &ManagedConnection) {
     assert_eq!(error.status.unwrap(), Status::InvalidState);
 
     connection
-        .set_option(ConnectionOptionKey::AutoCommit, "false".into())
+        .set_option(OptionConnection::AutoCommit, "false".into())
         .unwrap();
 
     statement.set_sql_query("create table t(a int)").unwrap();
@@ -298,12 +298,12 @@ pub fn test_ingestion_roundtrip(connection: &ManagedConnection) {
     let batch = sample_batch();
 
     connection
-        .set_option(ConnectionOptionKey::AutoCommit, "false".into())
+        .set_option(OptionConnection::AutoCommit, "false".into())
         .unwrap();
 
     // Ingest
     statement
-        .set_option(StatementOptionKey::TargetTable, "my_table".into())
+        .set_option(OptionStatement::TargetTable, "my_table".into())
         .unwrap();
 
     statement.bind(batch.clone()).unwrap();
