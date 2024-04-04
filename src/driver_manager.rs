@@ -17,6 +17,16 @@
 //! different name to support statically linking multiple drivers within the
 //! same program.
 //!
+//! ## Using across threads
+//!
+//! [DriverManager] and [ManagedDatabase] are [Send] and [Sync] and thus can be
+//! used across multiple threads. They hold their inner implementations within
+//! [std::sync::Arc], so they are cheaply clonable.
+//!
+//! [ManagedConnection] and [ManagedStatement] aren't [Send] nor [Sync] and thus
+//! cannot be used across multiple threads. So instead of using the same
+//! connection across multiple threads, create a connection for each thread.
+//!
 //! ## Example
 //!
 //! ```rust
@@ -74,6 +84,7 @@ use std::ffi::{CStr, CString};
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_char, c_void};
 use std::ptr::{null, null_mut};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
@@ -107,21 +118,28 @@ pub(crate) fn check_status(
     }
 }
 
-/// Implementation of [Driver].
-pub struct DriverManager {
-    driver: Arc<Mutex<ffi::FFI_AdbcDriver>>,
+struct DriverManagerInner {
+    driver: Mutex<ffi::FFI_AdbcDriver>,
     version: AdbcVersion, // Driver version
     _library: Option<libloading::Library>,
 }
+
+/// Implementation of [Driver].
+#[derive(Clone)]
+pub struct DriverManager {
+    inner: Arc<DriverManagerInner>,
+}
+
 impl DriverManager {
     /// Load a driver from an initialization function.
     pub fn load_static(init: &crate::AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
         let driver = Self::load_impl(init, version)?;
-        Ok(DriverManager {
-            driver: Arc::new(Mutex::new(driver)),
+        let inner = Arc::new(DriverManagerInner {
+            driver: Mutex::new(driver),
             version,
             _library: None,
-        })
+        });
+        Ok(DriverManager { inner })
     }
 
     /// Load a driver from a dynamic library.
@@ -142,11 +160,12 @@ impl DriverManager {
         let init: libloading::Symbol<ffi::FFI_AdbcDriverInitFunc> =
             unsafe { library.get(entrypoint)? };
         let driver = Self::load_impl(&init, version)?;
-        Ok(DriverManager {
-            driver: Arc::new(Mutex::new(driver)),
+        let inner = Arc::new(DriverManagerInner {
+            driver: Mutex::new(driver),
             version,
             _library: Some(library),
-        })
+        });
+        Ok(DriverManager { inner })
     }
 
     fn load_impl(
@@ -166,43 +185,51 @@ impl DriverManager {
         Ok(driver)
     }
 }
-impl Driver for DriverManager {
-    type DatabaseType<'driver> = ManagedDatabase<'driver>;
 
-    fn new_database(&self) -> Result<Self::DatabaseType<'_>> {
-        let opts: [(<Self::DatabaseType<'_> as Optionable>::Key, OptionValue); 0] = [];
+impl Driver for DriverManager {
+    type DatabaseType = ManagedDatabase;
+
+    fn new_database(&self) -> Result<Self::DatabaseType> {
+        let opts: [(<Self::DatabaseType as Optionable>::Key, OptionValue); 0] = [];
         self.new_database_with_opts(opts.into_iter())
     }
 
-    fn new_database_with_opts<'a>(
+    fn new_database_with_opts(
         &self,
-        opts: impl Iterator<Item = (<Self::DatabaseType<'a> as Optionable>::Key, OptionValue)>,
-    ) -> Result<Self::DatabaseType<'_>> {
+        opts: impl Iterator<Item = (<Self::DatabaseType as Optionable>::Key, OptionValue)>,
+    ) -> Result<Self::DatabaseType> {
+        let mut driver = self.inner.driver.lock().unwrap();
         let mut database = ffi::FFI_AdbcDatabase::default();
 
         // DatabaseNew
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.driver.lock().unwrap();
         let method = driver_method!(driver, DatabaseNew);
         let status = unsafe { method(&mut database, &mut error) };
         check_status(status, error)?;
 
         // DatabaseSetOption
         for (key, value) in opts {
-            set_option_database(driver.deref(), &mut database, self.version, key, value)?;
+            set_option_database(
+                driver.deref_mut(),
+                &mut database,
+                self.inner.version,
+                key,
+                value,
+            )?;
         }
 
         // DatabaseInit
         let mut error = ffi::FFI_AdbcError::default();
-        let method = driver_method!(driver, DatabaseInit);
+        let method = driver_method!(&mut driver, DatabaseInit);
         let status = unsafe { method(&mut database, &mut error) };
         check_status(status, error)?;
 
-        Ok(Self::DatabaseType {
-            database: Arc::new(Mutex::new(database)),
-            version: self.version,
-            driver: self,
-        })
+        let inner = Arc::new(ManagedDatabaseInner {
+            database: Mutex::new(database),
+            version: self.inner.version,
+            driver: self.inner.clone(),
+        });
+        Ok(Self::DatabaseType { inner })
     }
 }
 
@@ -322,18 +349,37 @@ where
     Ok(value.to_string_lossy().to_string())
 }
 
-/// Implementation of [Database].
-pub struct ManagedDatabase<'driver> {
-    database: Arc<Mutex<ffi::FFI_AdbcDatabase>>,
-    driver: &'driver DriverManager,
+struct ManagedDatabaseInner {
+    database: Mutex<ffi::FFI_AdbcDatabase>,
+    driver: Arc<DriverManagerInner>,
     version: AdbcVersion,
 }
-impl<'driver> Optionable for ManagedDatabase<'driver> {
+
+impl Drop for ManagedDatabaseInner {
+    fn drop(&mut self) {
+        let driver = self.driver.driver.lock().unwrap();
+        let mut database = self.database.lock().unwrap();
+        let mut error = ffi::FFI_AdbcError::default();
+        let method = driver_method!(driver, DatabaseRelease);
+        let status = unsafe { method(database.deref_mut(), &mut error) };
+        if let Err(err) = check_status(status, error) {
+            panic!("unable to drop database: {:?}", err);
+        }
+    }
+}
+
+/// Implementation of [Database].
+#[derive(Clone)]
+pub struct ManagedDatabase {
+    inner: Arc<ManagedDatabaseInner>,
+}
+
+impl Optionable for ManagedDatabase {
     type Key = options::DatabaseOptionKey;
     fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
-        let driver = self.driver.driver.lock().unwrap();
+        let driver = self.inner.driver.driver.lock().unwrap();
+        let mut database = self.inner.database.lock().unwrap();
         let method = driver_method!(driver, DatabaseGetOptionBytes);
-        let mut database = self.database.lock().unwrap();
         let populate = |key: *const c_char,
                         value: *mut u8,
                         length: *mut usize,
@@ -343,31 +389,31 @@ impl<'driver> Optionable for ManagedDatabase<'driver> {
         get_option_bytes(key, populate)
     }
     fn get_option_double(&self, key: Self::Key) -> Result<f64> {
+        let driver = self.inner.driver.driver.lock().unwrap();
+        let mut database = self.inner.database.lock().unwrap();
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
-        let driver = self.driver.driver.lock().unwrap();
         let method = driver_method!(driver, DatabaseGetOptionDouble);
-        let mut database = self.database.lock().unwrap();
         let status = unsafe { method(database.deref_mut(), key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
     }
     fn get_option_int(&self, key: Self::Key) -> Result<i64> {
+        let driver = self.inner.driver.driver.lock().unwrap();
+        let mut database = self.inner.database.lock().unwrap();
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
-        let driver = self.driver.driver.lock().unwrap();
         let method = driver_method!(driver, DatabaseGetOptionInt);
-        let mut database = self.database.lock().unwrap();
         let status = unsafe { method(database.deref_mut(), key.as_ptr(), &mut value, &mut error) };
         check_status(status, error)?;
         Ok(value)
     }
     fn get_option_string(&self, key: Self::Key) -> Result<String> {
-        let driver = self.driver.driver.lock().unwrap();
+        let driver = self.inner.driver.driver.lock().unwrap();
+        let mut database = self.inner.database.lock().unwrap();
         let method = driver_method!(driver, DatabaseGetOption);
-        let mut database = self.database.lock().unwrap();
         let populate = |key: *const c_char,
                         value: *mut c_char,
                         length: *mut usize,
@@ -377,66 +423,56 @@ impl<'driver> Optionable for ManagedDatabase<'driver> {
         get_option_string(key, populate)
     }
     fn set_option(&self, key: Self::Key, value: OptionValue) -> Result<()> {
-        let driver = self.driver.driver.lock().unwrap();
-        let mut database = self.database.lock().unwrap();
+        let driver = self.inner.driver.driver.lock().unwrap();
+        let mut database = self.inner.database.lock().unwrap();
         set_option_database(
-            driver.deref(),
+            &driver,
             database.deref_mut(),
-            self.version,
+            self.inner.version,
             key,
             value,
         )
     }
 }
-impl<'driver> Database for ManagedDatabase<'driver> {
-    type ConnectionType<'database> = ManagedConnection<'driver, 'database> where Self: 'database;
 
-    fn new_connection(&self) -> Result<Self::ConnectionType<'_>> {
-        let opts: [(<Self::ConnectionType<'_> as Optionable>::Key, OptionValue); 0] = [];
+impl Database for ManagedDatabase {
+    type ConnectionType = ManagedConnection;
+
+    fn new_connection(&self) -> Result<Self::ConnectionType> {
+        let opts: [(<Self::ConnectionType as Optionable>::Key, OptionValue); 0] = [];
         self.new_connection_with_opts(opts.into_iter())
     }
 
-    fn new_connection_with_opts<'a>(
+    fn new_connection_with_opts(
         &self,
-        opts: impl Iterator<Item = (<Self::ConnectionType<'a> as Optionable>::Key, OptionValue)>,
-    ) -> Result<Self::ConnectionType<'_>>
-    where
-        Self: 'a,
-    {
+        opts: impl Iterator<Item = (<Self::ConnectionType as Optionable>::Key, OptionValue)>,
+    ) -> Result<Self::ConnectionType> {
+        let driver = self.inner.driver.driver.lock().unwrap();
+        let mut database = self.inner.database.lock().unwrap();
         let mut connection = ffi::FFI_AdbcConnection::default();
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionNew);
         let status = unsafe { method(&mut connection, &mut error) };
         check_status(status, error)?;
 
         for (key, value) in opts {
-            set_option_connection(driver.deref(), &mut connection, self.version, key, value)?;
+            set_option_connection(&driver, &mut connection, self.inner.version, key, value)?;
         }
 
         let mut error = ffi::FFI_AdbcError::default();
         let method = driver_method!(driver, ConnectionInit);
-        let mut database = self.database.lock().unwrap();
         let status = unsafe { method(&mut connection, database.deref_mut(), &mut error) };
         check_status(status, error)?;
 
-        Ok(Self::ConnectionType {
-            version: self.version,
+        let inner = ManagedConnectionInner {
             connection: RefCell::new(connection),
-            database: self,
+            version: self.inner.version,
+            database: self.inner.clone(),
+        };
+
+        Ok(Self::ConnectionType {
+            inner: Rc::new(inner),
         })
-    }
-}
-impl<'driver> Drop for ManagedDatabase<'driver> {
-    fn drop(&mut self) {
-        let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.driver.driver.lock().unwrap();
-        let method = driver_method!(driver, DatabaseRelease);
-        let mut database = self.database.lock().unwrap();
-        let status = unsafe { method(database.deref_mut(), &mut error) };
-        if let Err(err) = check_status(status, error) {
-            panic!("unable to drop database: {:?}", err);
-        }
     }
 }
 
@@ -483,23 +519,40 @@ fn set_option_connection(
     check_status(status, error)
 }
 
-/// Implementation of [Connection].
-pub struct ManagedConnection<'driver, 'database> {
+struct ManagedConnectionInner {
     connection: RefCell<ffi::FFI_AdbcConnection>,
     version: AdbcVersion,
-    database: &'database ManagedDatabase<'driver>,
+    database: Arc<ManagedDatabaseInner>,
 }
-impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
+
+impl Drop for ManagedConnectionInner {
+    fn drop(&mut self) {
+        let mut error = ffi::FFI_AdbcError::default();
+        let driver = self.database.driver.driver.lock().unwrap();
+        let method = driver_method!(driver, ConnectionRelease);
+        let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
+        if let Err(err) = check_status(status, error) {
+            panic!("unable to drop connection: {:?}", err);
+        }
+    }
+}
+
+/// Implementation of [Connection].
+pub struct ManagedConnection {
+    inner: Rc<ManagedConnectionInner>,
+}
+
+impl Optionable for ManagedConnection {
     type Key = options::ConnectionOptionKey;
     fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOptionBytes);
         let populate = |key: *const c_char,
                         value: *mut u8,
                         length: *mut usize,
                         error: *mut ffi::FFI_AdbcError| unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 key,
                 value,
                 length,
@@ -512,11 +565,11 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: f64 = 0.0;
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOptionDouble);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 key.as_ptr(),
                 &mut value,
                 &mut error,
@@ -529,11 +582,11 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         let key = CString::new(key.as_ref())?;
         let mut error = ffi::FFI_AdbcError::default();
         let mut value: i64 = 0;
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOptionInt);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 key.as_ptr(),
                 &mut value,
                 &mut error,
@@ -543,14 +596,14 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         Ok(value)
     }
     fn get_option_string(&self, key: Self::Key) -> Result<String> {
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetOption);
         let populate = |key: *const c_char,
                         value: *mut c_char,
                         length: *mut usize,
                         error: *mut ffi::FFI_AdbcError| unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 key,
                 value,
                 length,
@@ -560,27 +613,28 @@ impl<'driver, 'database> Optionable for ManagedConnection<'driver, 'database> {
         get_option_string(key, populate)
     }
     fn set_option(&self, key: Self::Key, value: OptionValue) -> Result<()> {
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         set_option_connection(
-            driver.deref(),
-            self.connection.borrow_mut().deref_mut(),
-            self.version,
+            &driver,
+            self.inner.connection.borrow_mut().deref_mut(),
+            self.inner.version,
             key,
             value,
         )
     }
 }
-impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
-    type StatementType<'connection> = ManagedStatement<'driver, 'database, 'connection> where Self: 'connection;
 
-    fn new_statement(&self) -> Result<Self::StatementType<'_>> {
+impl Connection for ManagedConnection {
+    type StatementType = ManagedStatement;
+
+    fn new_statement(&self) -> Result<Self::StatementType> {
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let mut statement = ffi::FFI_AdbcStatement::default();
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementNew);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 &mut statement,
                 &mut error,
             )
@@ -589,38 +643,38 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
 
         Ok(Self::StatementType {
             statement: RefCell::new(statement),
-            version: self.version,
-            connection: self,
+            version: self.inner.version,
+            connection: self.inner.clone(),
         })
     }
 
     fn cancel(&self) -> Result<()> {
-        if let AdbcVersion::V100 = self.version {
+        if let AdbcVersion::V100 = self.inner.version {
             return Err(Error::with_message_and_status(
                 ERR_CANCEL_UNSUPPORTED,
                 Status::NotImplemented,
             ));
         }
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionCancel);
-        let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
+        let status = unsafe { method(self.inner.connection.borrow_mut().deref_mut(), &mut error) };
         check_status(status, error)
     }
 
     fn commit(&self) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionCommit);
-        let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
+        let status = unsafe { method(self.inner.connection.borrow_mut().deref_mut(), &mut error) };
         check_status(status, error)
     }
 
     fn rollback(&self) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionRollback);
-        let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
+        let status = unsafe { method(self.inner.connection.borrow_mut().deref_mut(), &mut error) };
         check_status(status, error)
     }
 
@@ -636,11 +690,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
             .as_ref()
             .map(|c| (c.as_ptr(), c.len()))
             .unwrap_or((null(), 0));
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetInfo);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 codes_ptr,
                 codes_len,
                 &mut stream,
@@ -688,13 +742,13 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         };
 
         let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetObjects);
         let mut stream = FFI_ArrowArrayStream::empty();
 
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 depth.into(),
                 catalog_ptr,
                 db_schema_ptr,
@@ -718,7 +772,7 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         table_name: Option<&str>,
         approximate: bool,
     ) -> Result<impl RecordBatchReader> {
-        if let AdbcVersion::V100 = self.version {
+        if let AdbcVersion::V100 = self.inner.version {
             return Err(Error::with_message_and_status(
                 ERR_STATISTICS_UNSUPPORTED,
                 Status::NotImplemented,
@@ -735,11 +789,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetStatistics);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 catalog_ptr,
                 db_schema_ptr,
                 table_name_ptr,
@@ -754,7 +808,7 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
     }
 
     fn get_statistics_name(&self) -> Result<impl RecordBatchReader> {
-        if let AdbcVersion::V100 = self.version {
+        if let AdbcVersion::V100 = self.inner.version {
             return Err(Error::with_message_and_status(
                 ERR_STATISTICS_UNSUPPORTED,
                 Status::NotImplemented,
@@ -762,11 +816,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         }
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetStatisticNames);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 &mut stream,
                 &mut error,
             )
@@ -792,11 +846,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut schema = FFI_ArrowSchema::empty();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetTableSchema);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 catalog_ptr,
                 db_schema_ptr,
                 table_name_ptr,
@@ -811,11 +865,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
     fn get_table_types(&self) -> Result<impl RecordBatchReader> {
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionGetTableTypes);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 &mut stream,
                 &mut error,
             )
@@ -828,11 +882,11 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
     fn read_partition(&self, partition: &[u8]) -> Result<impl RecordBatchReader> {
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
-        let driver = self.database.driver.driver.lock().unwrap();
+        let driver = self.inner.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, ConnectionReadPartition);
         let status = unsafe {
             method(
-                self.connection.borrow_mut().deref_mut(),
+                self.inner.connection.borrow_mut().deref_mut(),
                 partition.as_ptr(),
                 partition.len(),
                 &mut stream,
@@ -842,17 +896,6 @@ impl<'driver, 'database> Connection for ManagedConnection<'driver, 'database> {
         check_status(status, error)?;
         let reader = ArrowArrayStreamReader::try_new(stream)?;
         Ok(reader)
-    }
-}
-impl<'driver, 'database> Drop for ManagedConnection<'driver, 'database> {
-    fn drop(&mut self) {
-        let mut error = ffi::FFI_AdbcError::default();
-        let driver = self.database.driver.driver.lock().unwrap();
-        let method = driver_method!(driver, ConnectionRelease);
-        let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
-        if let Err(err) = check_status(status, error) {
-            panic!("unable to drop connection: {:?}", err);
-        }
     }
 }
 
@@ -900,14 +943,13 @@ fn set_option_statement(
 }
 
 /// Implementation of [Statement].
-pub struct ManagedStatement<'driver, 'database, 'connection> {
+pub struct ManagedStatement {
     statement: RefCell<ffi::FFI_AdbcStatement>,
     version: AdbcVersion,
-    connection: &'connection ManagedConnection<'driver, 'database>,
+    connection: Rc<ManagedConnectionInner>,
 }
-impl<'driver, 'database, 'connection> Statement
-    for ManagedStatement<'driver, 'database, 'connection>
-{
+
+impl Statement for ManagedStatement {
     fn bind(&self, batch: RecordBatch) -> Result<()> {
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
@@ -1084,9 +1126,8 @@ impl<'driver, 'database, 'connection> Statement
         Ok(())
     }
 }
-impl<'driver, 'database, 'connection> Optionable
-    for ManagedStatement<'driver, 'database, 'connection>
-{
+
+impl Optionable for ManagedStatement {
     type Key = options::StatementOptionKey;
     fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
@@ -1159,7 +1200,7 @@ impl<'driver, 'database, 'connection> Optionable
     fn set_option(&self, key: Self::Key, value: OptionValue) -> Result<()> {
         let driver = self.connection.database.driver.driver.lock().unwrap();
         set_option_statement(
-            driver.deref(),
+            &driver,
             self.statement.borrow_mut().deref_mut(),
             self.version,
             key,
@@ -1167,7 +1208,8 @@ impl<'driver, 'database, 'connection> Optionable
         )
     }
 }
-impl<'driver, 'database, 'connection> Drop for ManagedStatement<'driver, 'database, 'connection> {
+
+impl Drop for ManagedStatement {
     fn drop(&mut self) {
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();

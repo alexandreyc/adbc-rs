@@ -67,25 +67,21 @@ pub trait Optionable {
 
 /// A handle to a driver.
 pub trait Driver {
-    type DatabaseType<'driver>: Database
-    where
-        Self: 'driver;
+    type DatabaseType: Database;
 
     /// Allocate and initialize a new database without pre-init options.
-    fn new_database(&self) -> Result<Self::DatabaseType<'_>>;
+    fn new_database(&self) -> Result<Self::DatabaseType>;
 
     /// Allocate and initialize a new database with pre-init options.
-    fn new_database_with_opts<'a>(
+    fn new_database_with_opts(
         &self,
         opts: impl Iterator<
             Item = (
-                <Self::DatabaseType<'a> as Optionable>::Key,
+                <Self::DatabaseType as Optionable>::Key,
                 options::OptionValue,
             ),
         >,
-    ) -> Result<Self::DatabaseType<'_>>
-    where
-        Self: 'a;
+    ) -> Result<Self::DatabaseType>;
 }
 
 /// A handle to a database.
@@ -96,25 +92,21 @@ pub trait Driver {
 ///
 /// Databases must be kept alive as long as any connections exist.
 pub trait Database: Optionable {
-    type ConnectionType<'database>: Connection
-    where
-        Self: 'database;
+    type ConnectionType: Connection;
 
     /// Allocate and initialize a new connection without pre-init options.
-    fn new_connection(&self) -> Result<Self::ConnectionType<'_>>;
+    fn new_connection(&self) -> Result<Self::ConnectionType>;
 
     /// Allocate and initialize a new connection with pre-init options.
-    fn new_connection_with_opts<'a>(
+    fn new_connection_with_opts(
         &self,
         opts: impl Iterator<
             Item = (
-                <Self::ConnectionType<'a> as Optionable>::Key,
+                <Self::ConnectionType as Optionable>::Key,
                 options::OptionValue,
             ),
         >,
-    ) -> Result<Self::ConnectionType<'_>>
-    where
-        Self: 'a;
+    ) -> Result<Self::ConnectionType>;
 }
 
 /// A handle to a connection.
@@ -128,12 +120,10 @@ pub trait Database: Optionable {
 /// setting [options::ConnectionOptionKey::AutoCommit] to "false". Turning off
 /// autocommit allows customizing the isolation level.
 pub trait Connection: Optionable {
-    type StatementType<'connection>: Statement
-    where
-        Self: 'connection;
+    type StatementType: Statement;
 
     /// Allocate and initialize a new statement.
-    fn new_statement(&self) -> Result<Self::StatementType<'_>>;
+    fn new_statement(&self) -> Result<Self::StatementType>;
 
     /// Cancel the in-progress operation on a connection.
     fn cancel(&self) -> Result<()>;
