@@ -16,7 +16,7 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
-struct SingleBatchReader {
+pub struct SingleBatchReader {
     batch: Option<RecordBatch>,
     schema: SchemaRef,
 }
@@ -45,7 +45,7 @@ impl RecordBatchReader for SingleBatchReader {
     }
 }
 
-fn sample_batch() -> RecordBatch {
+pub fn sample_batch() -> RecordBatch {
     let columns: Vec<Arc<dyn Array>> = vec![
         Arc::new(Int64Array::from(vec![1, 2, 3, 4])),
         Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0, 4.0])),
@@ -85,7 +85,7 @@ pub fn test_database(database: &ManagedDatabase) {
     assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
 }
 
-pub fn test_connection(connection: &ManagedConnection) {
+pub fn test_connection(connection: &mut ManagedConnection) {
     assert!(connection
         .set_option(OptionConnection::AutoCommit, "true".into())
         .is_ok());
@@ -98,7 +98,7 @@ pub fn test_connection(connection: &ManagedConnection) {
     assert!(connection.new_statement().is_ok());
 }
 
-pub fn test_connection_commit_rollback(connection: &ManagedConnection) {
+pub fn test_connection_commit_rollback(connection: &mut ManagedConnection) {
     let error = connection.commit().unwrap_err();
     assert_eq!(error.status.unwrap(), Status::InvalidState);
 
@@ -191,7 +191,7 @@ pub fn test_connection_get_objects(
     assert_eq!(objects.num_columns(), 2);
 }
 
-pub fn test_connection_get_table_schema(connection: &ManagedConnection) {
+pub fn test_connection_get_table_schema(connection: &mut ManagedConnection) {
     const TABLE_NAME: &str = "my_super_table";
 
     connection
@@ -218,7 +218,7 @@ pub fn test_connection_get_table_schema(connection: &ManagedConnection) {
         .is_err());
 }
 
-pub fn test_statement(statement: &ManagedStatement) {
+pub fn test_statement(statement: &mut ManagedStatement) {
     statement
         .set_option(OptionStatement::IngestMode, IngestMode::Create.into())
         .unwrap();
@@ -253,7 +253,7 @@ pub fn test_statement_execute(statement: &ManagedStatement) {
     assert_eq!(batch.num_columns(), 1);
 }
 
-pub fn test_statement_execute_update(connection: &ManagedConnection) {
+pub fn test_statement_execute_update(connection: &mut ManagedConnection) {
     let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_update().unwrap_err();
@@ -293,8 +293,8 @@ pub fn test_statement_bind_stream(statement: &ManagedStatement) {
     statement.bind_stream(Box::new(reader)).unwrap();
 }
 
-pub fn test_ingestion_roundtrip(connection: &ManagedConnection) {
-    let statement = connection.new_statement().unwrap();
+pub fn test_ingestion_roundtrip(connection: &mut ManagedConnection) {
+    let mut statement = connection.new_statement().unwrap();
     let batch = sample_batch();
 
     connection

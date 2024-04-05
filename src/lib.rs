@@ -34,6 +34,7 @@
 //! or by dynamically finding such a function in a dynamic library (run-time).
 
 pub mod driver_manager;
+pub mod dummy;
 pub mod error;
 pub(crate) mod ffi;
 pub mod options;
@@ -47,22 +48,22 @@ use error::{Error, Result};
 
 /// Ability to configure an object.
 pub trait Optionable {
-    type Key: AsRef<str>;
+    type Option: AsRef<str>;
 
     /// Set a post-init option.
-    fn set_option(&self, key: Self::Key, value: options::OptionValue) -> Result<()>;
+    fn set_option(&mut self, key: Self::Option, value: options::OptionValue) -> Result<()>;
 
     /// Get a string option value by key.
-    fn get_option_string(&self, key: Self::Key) -> Result<String>;
+    fn get_option_string(&self, key: Self::Option) -> Result<String>;
 
     /// Get a bytes option value by key.
-    fn get_option_bytes(&self, key: Self::Key) -> Result<Vec<u8>>;
+    fn get_option_bytes(&self, key: Self::Option) -> Result<Vec<u8>>;
 
     /// Get an integer option value by key.
-    fn get_option_int(&self, key: Self::Key) -> Result<i64>;
+    fn get_option_int(&self, key: Self::Option) -> Result<i64>;
 
     /// Get a float option value by key.
-    fn get_option_double(&self, key: Self::Key) -> Result<f64>;
+    fn get_option_double(&self, key: Self::Option) -> Result<f64>;
 }
 
 /// A handle to a driver.
@@ -77,7 +78,7 @@ pub trait Driver {
         &self,
         opts: impl Iterator<
             Item = (
-                <Self::DatabaseType as Optionable>::Key,
+                <Self::DatabaseType as Optionable>::Option,
                 options::OptionValue,
             ),
         >,
@@ -102,7 +103,7 @@ pub trait Database: Optionable {
         &self,
         opts: impl Iterator<
             Item = (
-                <Self::ConnectionType as Optionable>::Key,
+                <Self::ConnectionType as Optionable>::Option,
                 options::OptionValue,
             ),
         >,

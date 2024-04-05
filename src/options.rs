@@ -1,7 +1,8 @@
 //! Various option and configuration types.
 
-use crate::ffi::constants;
 use std::os::raw::c_int;
+
+use crate::ffi::constants;
 
 /// Option value.
 ///
@@ -80,6 +81,7 @@ impl From<AdbcVersion> for i32 {
 }
 
 /// Info codes for database/driver metadata.
+#[derive(Debug)]
 pub enum InfoCode {
     /// The database vendor/product name (type: utf8).
     VendorName,
@@ -102,6 +104,7 @@ pub enum InfoCode {
 }
 
 /// Depth parameter for [get_objects][crate::Connection::get_objects] method.
+#[derive(Debug)]
 pub enum ObjectDepth {
     /// Catalogs, schemas, tables, and columns.
     All,
@@ -142,6 +145,7 @@ impl From<ObjectDepth> for c_int {
 }
 
 /// Database option key.
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum OptionDatabase {
     /// Canonical option key for URIs.
     ///
@@ -177,6 +181,7 @@ impl AsRef<str> for OptionDatabase {
 }
 
 /// Connection option key.
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum OptionConnection {
     /// Whether autocommit is enabled.
     AutoCommit,
@@ -210,6 +215,7 @@ impl AsRef<str> for OptionConnection {
 }
 
 /// Statement option key.
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum OptionStatement {
     /// The ingest mode for a bulk insert. See [IngestMode].
     IngestMode,
@@ -272,6 +278,7 @@ impl AsRef<str> for OptionStatement {
 }
 
 /// Isolation level value for key [IsolationLevel][OptionConnection::IsolationLevel].
+#[derive(Debug)]
 pub enum IsolationLevel {
     /// Use database or driver default isolation level.
     Default,
@@ -315,35 +322,38 @@ pub enum IsolationLevel {
     Linearizable,
 }
 
-impl From<IsolationLevel> for OptionValue {
+impl From<IsolationLevel> for String {
     fn from(value: IsolationLevel) -> Self {
         match value {
-            IsolationLevel::Default => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_DEFAULT.into())
-            }
+            IsolationLevel::Default => constants::ADBC_OPTION_ISOLATION_LEVEL_DEFAULT.into(),
             IsolationLevel::ReadUncommitted => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_READ_UNCOMMITTED.into())
+                constants::ADBC_OPTION_ISOLATION_LEVEL_READ_UNCOMMITTED.into()
             }
             IsolationLevel::ReadCommitted => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_READ_COMMITTED.into())
+                constants::ADBC_OPTION_ISOLATION_LEVEL_READ_COMMITTED.into()
             }
             IsolationLevel::RepeatableRead => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_REPEATABLE_READ.into())
+                constants::ADBC_OPTION_ISOLATION_LEVEL_REPEATABLE_READ.into()
             }
-            IsolationLevel::Snapshot => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_SNAPSHOT.into())
-            }
+            IsolationLevel::Snapshot => constants::ADBC_OPTION_ISOLATION_LEVEL_SNAPSHOT.into(),
             IsolationLevel::Serializable => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_SERIALIZABLE.into())
+                constants::ADBC_OPTION_ISOLATION_LEVEL_SERIALIZABLE.into()
             }
             IsolationLevel::Linearizable => {
-                Self::String(constants::ADBC_OPTION_ISOLATION_LEVEL_LINEARIZABLE.into())
+                constants::ADBC_OPTION_ISOLATION_LEVEL_LINEARIZABLE.into()
             }
         }
     }
 }
 
+impl From<IsolationLevel> for OptionValue {
+    fn from(value: IsolationLevel) -> Self {
+        Self::String(value.into())
+    }
+}
+
 /// Ingestion mode value for key [IngestMode][OptionStatement::IngestMode].
+#[derive(Debug)]
 pub enum IngestMode {
     /// Create the table and insert data; error if the table exists.
     Create,
@@ -369,15 +379,18 @@ pub enum IngestMode {
     CreateAppend,
 }
 
-impl From<IngestMode> for OptionValue {
+impl From<IngestMode> for String {
     fn from(value: IngestMode) -> Self {
         match value {
-            IngestMode::Create => Self::String(constants::ADBC_INGEST_OPTION_MODE_CREATE.into()),
-            IngestMode::Append => Self::String(constants::ADBC_INGEST_OPTION_MODE_APPEND.into()),
-            IngestMode::Replace => Self::String(constants::ADBC_INGEST_OPTION_MODE_REPLACE.into()),
-            IngestMode::CreateAppend => {
-                Self::String(constants::ADBC_INGEST_OPTION_MODE_CREATE_APPEND.into())
-            }
+            IngestMode::Create => constants::ADBC_INGEST_OPTION_MODE_CREATE.into(),
+            IngestMode::Append => constants::ADBC_INGEST_OPTION_MODE_APPEND.into(),
+            IngestMode::Replace => constants::ADBC_INGEST_OPTION_MODE_REPLACE.into(),
+            IngestMode::CreateAppend => constants::ADBC_INGEST_OPTION_MODE_CREATE_APPEND.into(),
         }
+    }
+}
+impl From<IngestMode> for OptionValue {
+    fn from(value: IngestMode) -> Self {
+        Self::String(value.into())
     }
 }

@@ -63,8 +63,8 @@ fn test_database_get_option() {
 fn test_connection() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
-    common::test_connection(&connection);
+    let mut connection = database.new_connection().unwrap();
+    common::test_connection(&mut connection);
 }
 
 #[test]
@@ -108,8 +108,8 @@ fn test_connection_cancel() {
 fn test_connection_commit_rollback() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
-    common::test_connection_commit_rollback(&connection);
+    let mut connection = database.new_connection().unwrap();
+    common::test_connection_commit_rollback(&mut connection);
 }
 
 #[test]
@@ -148,8 +148,8 @@ fn test_connection_get_objects() {
 fn test_connection_get_table_schema() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
-    common::test_connection_get_table_schema(&connection);
+    let mut connection = database.new_connection().unwrap();
+    common::test_connection_get_table_schema(&mut connection);
 }
 
 #[test]
@@ -173,8 +173,8 @@ fn test_statement() {
     let driver = get_driver();
     let database = get_database(&driver);
     let connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement(&mut statement);
 }
 
 #[test]
@@ -226,8 +226,8 @@ fn test_statement_execute() {
 fn test_statement_execute_update() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
-    common::test_statement_execute_update(&connection);
+    let mut connection = database.new_connection().unwrap();
+    common::test_statement_execute_update(&mut connection);
 }
 
 #[test]
@@ -283,6 +283,6 @@ fn test_statement_bind_stream() {
 fn test_ingestion_roundtrip() {
     let driver = get_driver();
     let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
-    common::test_ingestion_roundtrip(&connection);
+    let mut connection = database.new_connection().unwrap();
+    common::test_ingestion_roundtrip(&mut connection);
 }
