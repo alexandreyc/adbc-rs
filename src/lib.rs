@@ -33,6 +33,7 @@
 //! either from an initialization function (link-time, either static or dynamic)
 //! or by dynamically finding such a function in a dynamic library (run-time).
 
+pub mod driver_exporter;
 pub mod driver_manager;
 pub mod dummy;
 pub mod error;
@@ -45,6 +46,7 @@ use arrow::datatypes::Schema;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use error::{Error, Result};
+use options::{OptionConnection, OptionDatabase, OptionStatement};
 
 /// Ability to configure an object.
 pub trait Optionable {
@@ -76,12 +78,7 @@ pub trait Driver {
     /// Allocate and initialize a new database with pre-init options.
     fn new_database_with_opts(
         &self,
-        opts: impl Iterator<
-            Item = (
-                <Self::DatabaseType as Optionable>::Option,
-                options::OptionValue,
-            ),
-        >,
+        opts: impl Iterator<Item = (OptionDatabase, options::OptionValue)>,
     ) -> Result<Self::DatabaseType>;
 }
 
@@ -92,7 +89,7 @@ pub trait Driver {
 /// hold ownership of the in-memory database.
 ///
 /// Databases must be kept alive as long as any connections exist.
-pub trait Database: Optionable {
+pub trait Database: Optionable<Option = OptionDatabase> {
     type ConnectionType: Connection;
 
     /// Allocate and initialize a new connection without pre-init options.
@@ -101,12 +98,7 @@ pub trait Database: Optionable {
     /// Allocate and initialize a new connection with pre-init options.
     fn new_connection_with_opts(
         &self,
-        opts: impl Iterator<
-            Item = (
-                <Self::ConnectionType as Optionable>::Option,
-                options::OptionValue,
-            ),
-        >,
+        opts: impl Iterator<Item = (options::OptionConnection, options::OptionValue)>,
     ) -> Result<Self::ConnectionType>;
 }
 
@@ -120,7 +112,7 @@ pub trait Database: Optionable {
 /// Connections should start in autocommit mode. They can be moved out by
 /// setting [options::OptionConnection::AutoCommit] to "false". Turning off
 /// autocommit allows customizing the isolation level.
-pub trait Connection: Optionable {
+pub trait Connection: Optionable<Option = OptionConnection> {
     type StatementType: Statement;
 
     /// Allocate and initialize a new statement.
@@ -407,7 +399,7 @@ pub trait Connection: Optionable {
 /// Multiple statements may be created from a single connection.
 /// However, the driver may block or error if they are used concurrently
 /// (whether from a single thread or multiple threads).
-pub trait Statement: Optionable {
+pub trait Statement: Optionable<Option = OptionStatement> {
     /// Bind Arrow data. This can be used for bulk inserts or prepared
     /// statements.
     fn bind(&self, batch: RecordBatch) -> Result<()>;

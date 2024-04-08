@@ -98,6 +98,7 @@ where
     }
 }
 
+#[derive(Default)]
 pub struct DummyDriver {}
 
 impl Driver for DummyDriver {
@@ -347,3 +348,5 @@ impl Statement for DummyStatement {
         Err(Error::with_message_and_status("", Status::NotImplemented))
     }
 }
+
+crate::export_driver!(DummyDriverInit, DummyDriver);

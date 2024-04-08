@@ -134,3 +134,15 @@ impl From<libloading::Error> for Error {
         }
     }
 }
+
+impl From<std::str::Utf8Error> for Error {
+    fn from(value: std::str::Utf8Error) -> Self {
+        Self {
+            message: Some(format!("Error while decoding UTF-8: {}", value)),
+            status: Some(Status::Internal),
+            vendor_code: 0,
+            sqlstate: [0; 5],
+            details: None,
+        }
+    }
+}

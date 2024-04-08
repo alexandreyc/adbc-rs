@@ -7,6 +7,7 @@ use crate::ffi::constants;
 /// Option value.
 ///
 /// Can be created with various implementations of [From].
+#[derive(Debug)]
 pub enum OptionValue {
     String(String),
     Bytes(Vec<u8>),
@@ -176,6 +177,17 @@ impl AsRef<str> for OptionDatabase {
             Self::Username => constants::ADBC_OPTION_USERNAME,
             Self::Password => constants::ADBC_OPTION_PASSWORD,
             Self::Other(key) => key,
+        }
+    }
+}
+
+impl From<&str> for OptionDatabase {
+    fn from(value: &str) -> Self {
+        match value {
+            constants::ADBC_OPTION_URI => Self::Uri,
+            constants::ADBC_OPTION_USERNAME => Self::Username,
+            constants::ADBC_OPTION_PASSWORD => Self::Password,
+            key => Self::Other(key.into()),
         }
     }
 }

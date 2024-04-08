@@ -1,6 +1,6 @@
 #![allow(non_camel_case_types, non_snake_case)]
 
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
@@ -18,12 +18,12 @@ pub type FFI_AdbcDriverInitFunc =
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_AdbcError {
-    message: *const c_char,
+    message: *mut c_char,
     vendor_code: i32,
     sqlstate: [c_char; 5],
-    release: Option<unsafe extern "C" fn(*const Self)>,
+    release: Option<unsafe extern "C" fn(*mut Self)>,
     /// Added in ADBC 1.1.0.
-    private_data: *const c_void,
+    pub(crate) private_data: *mut c_void,
     /// Added in ADBC 1.1.0.
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
@@ -44,7 +44,7 @@ pub struct FFI_AdbcErrorDetail {
 pub struct FFI_AdbcDatabase {
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
-    private_data: *const c_void,
+    pub(crate) private_data: *mut c_void,
     /// The associated driver (used by the driver manager to help track state).
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
@@ -56,7 +56,7 @@ unsafe impl Send for FFI_AdbcDatabase {}
 pub struct FFI_AdbcConnection {
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
-    private_data: *const c_void,
+    pub(crate) private_data: *mut c_void,
     /// The associated driver (used by the driver manager to help track state).
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
@@ -66,7 +66,7 @@ pub struct FFI_AdbcConnection {
 pub struct FFI_AdbcStatement {
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
-    private_data: *const c_void,
+    pub(crate) private_data: *mut c_void,
     /// The associated driver (used by the driver manager to help track state).
     pub(crate) private_driver: *const FFI_AdbcDriver,
 }
@@ -88,7 +88,7 @@ pub struct FFI_AdbcPartitions {
 
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
-    private_data: *const c_void,
+    pub(crate) private_data: *mut c_void,
 
     /// Release the contained partitions.
     /// Unlike other structures, this is an embedded callback to make it
@@ -102,13 +102,13 @@ pub struct FFI_AdbcDriver {
     /// Opaque driver-defined state.
     /// This field is NULL if the driver is unintialized/freed (but
     /// it need not have a value even if the driver is initialized).
-    private_data: *const c_void,
+    pub(crate) private_data: *mut c_void,
     /// Opaque driver manager-defined state.
     /// This field is NULL if the driver is unintialized/freed (but
     /// it need not have a value even if the driver is initialized).
-    private_manager: *const c_void,
+    pub(crate) private_manager: *const c_void,
 
-    release: Option<
+    pub(crate) release: Option<
         unsafe extern "C" fn(driver: *mut Self, error: *mut FFI_AdbcError) -> FFI_AdbcStatusCode,
     >,
 
@@ -209,6 +209,28 @@ impl From<FFI_AdbcStatusCode> for error::Status {
     }
 }
 
+impl From<&error::Status> for FFI_AdbcStatusCode {
+    fn from(value: &error::Status) -> Self {
+        match value {
+            error::Status::Ok => ffi::constants::ADBC_STATUS_OK,
+            error::Status::Unknown => ffi::constants::ADBC_STATUS_UNKNOWN,
+            error::Status::NotImplemented => ffi::constants::ADBC_STATUS_NOT_IMPLEMENTED,
+            error::Status::NotFound => ffi::constants::ADBC_STATUS_NOT_FOUND,
+            error::Status::AlreadyExists => ffi::constants::ADBC_STATUS_ALREADY_EXISTS,
+            error::Status::InvalidArguments => ffi::constants::ADBC_STATUS_INVALID_ARGUMENT,
+            error::Status::InvalidState => ffi::constants::ADBC_STATUS_INVALID_STATE,
+            error::Status::InvalidData => ffi::constants::ADBC_STATUS_INVALID_DATA,
+            error::Status::Integrity => ffi::constants::ADBC_STATUS_INTEGRITY,
+            error::Status::Internal => ffi::constants::ADBC_STATUS_INTERNAL,
+            error::Status::IO => ffi::constants::ADBC_STATUS_IO,
+            error::Status::Cancelled => ffi::constants::ADBC_STATUS_CANCELLED,
+            error::Status::Timeout => ffi::constants::ADBC_STATUS_TIMEOUT,
+            error::Status::Unauthenticated => ffi::constants::ADBC_STATUS_UNAUTHENTICATED,
+            error::Status::Unauthorized => ffi::constants::ADBC_STATUS_UNAUTHORIZED,
+        }
+    }
+}
+
 impl From<FFI_AdbcPartitions> for Partitions {
     fn from(value: FFI_AdbcPartitions) -> Self {
         let mut partitions = Vec::with_capacity(value.num_partitions);
@@ -292,11 +314,11 @@ impl Default for FFI_AdbcDriver {
 impl Default for FFI_AdbcError {
     fn default() -> Self {
         Self {
-            message: null(),
+            message: null_mut(),
             vendor_code: ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA,
             sqlstate: [0; 5],
             release: None,
-            private_data: null(),
+            private_data: null_mut(),
             private_driver: null(),
         }
     }
@@ -333,7 +355,7 @@ impl Default for FFI_AdbcErrorDetail {
 impl Default for FFI_AdbcStatement {
     fn default() -> Self {
         Self {
-            private_data: null(),
+            private_data: null_mut(),
             private_driver: null(),
         }
     }
@@ -391,6 +413,31 @@ impl From<FFI_AdbcError> for error::Error {
     }
 }
 
+impl From<error::Error> for FFI_AdbcError {
+    fn from(value: error::Error) -> Self {
+        // TODO: what to do with `value.details`?
+        let message = value
+            .message
+            .map(|s| CString::new(s).expect("Unexpected interior null byte"))
+            .map(|s| s.into_raw());
+        FFI_AdbcError {
+            message: message.unwrap_or(null_mut()),
+            release: Some(release_ffi_error),
+            vendor_code: value.vendor_code,
+            sqlstate: value.sqlstate,
+            private_data: null_mut(),
+            private_driver: null(),
+        }
+    }
+}
+
+unsafe extern "C" fn release_ffi_error(error: *mut FFI_AdbcError) {
+    match error.as_mut() {
+        None => (),
+        Some(error) => drop(CString::from_raw(error.message)),
+    }
+}
+
 impl Drop for FFI_AdbcError {
     fn drop(&mut self) {
         if let Some(release) = self.release {
@@ -417,4 +464,28 @@ impl Drop for FFI_AdbcPartitions {
             unsafe { release(self) };
         }
     }
+}
+
+/// Given a Result, either unwrap the value or handle the error in ADBC function.
+///
+/// This macro is for use when implementing ADBC methods that have an out
+/// parameter for [FFI_AdbcError] and return [FFI_AdbcStatusCode]. If the result is
+/// `Ok`, the expression resolves to the value. Otherwise, it will return early,
+/// setting the error and status code appropriately. In order for this to work,
+/// the error must be convertible to [crate::error::Error].
+#[macro_export]
+macro_rules! check_err {
+    ($res:expr, $err_out:expr) => {
+        match $res {
+            Ok(x) => x,
+            Err(error) => {
+                let error = $crate::error::Error::from(error);
+                let status: $crate::ffi::FFI_AdbcStatusCode =
+                    error.status.as_ref().expect("Missing status").into();
+                let ffi_error = $crate::ffi::FFI_AdbcError::from(error);
+                unsafe { std::ptr::write_unaligned($err_out, ffi_error) };
+                return status;
+            }
+        }
+    };
 }
