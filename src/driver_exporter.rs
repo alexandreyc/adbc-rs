@@ -3,7 +3,7 @@ use std::ffi::CStr;
 use std::os::raw::{c_char, c_void};
 
 use crate::check_err;
-use crate::error::{Error, Status};
+use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
 use crate::ffi::{
     FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcStatusCode,
@@ -136,13 +136,43 @@ unsafe extern "C" fn release_ffi_driver(
     ADBC_STATUS_OK
 }
 
+unsafe fn database_private_data<'a, DriverType: Driver + Default>(
+    database: *mut FFI_AdbcDatabase,
+) -> Result<&'a mut ExportedDatabase<DriverType>> {
+    let database = database.as_mut().ok_or(Error::with_message_and_status(
+        "Passed null database pointer",
+        Status::InvalidState,
+    ))?;
+    let exported = database.private_data as *mut ExportedDatabase<DriverType>;
+    let exported = exported.as_mut().ok_or(Error::with_message_and_status(
+        "Uninitialized database",
+        Status::InvalidState,
+    ));
+    exported
+}
+
+unsafe fn connecton_private_data<'a, DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+) -> Result<&'a mut ExportedConnection<DriverType>> {
+    let connection = connection.as_mut().ok_or(Error::with_message_and_status(
+        "Passed null connection pointer",
+        Status::InvalidState,
+    ))?;
+    let exported = connection.private_data as *mut ExportedConnection<DriverType>;
+    let exported = exported.as_mut().ok_or(Error::with_message_and_status(
+        "Uninitialized connection",
+        Status::InvalidState,
+    ));
+    exported
+}
+
 unsafe extern "C" fn database_new<DriverType: Driver + Default>(
     database: *mut FFI_AdbcDatabase,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
     let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to DatabaseNew",
-        Status::InvalidArguments,
+        "Passed null database pointer",
+        Status::InvalidState,
     ));
     let database = check_err!(database, error);
 
@@ -150,8 +180,8 @@ unsafe extern "C" fn database_new<DriverType: Driver + Default>(
         options: Some(HashMap::new()),
         database: None::<DriverType::DatabaseType>,
     });
-
     database.private_data = Box::into_raw(exported) as *mut c_void;
+
     ADBC_STATUS_OK
 }
 
@@ -159,22 +189,15 @@ unsafe extern "C" fn database_init<DriverType: Driver + Default>(
     database: *mut FFI_AdbcDatabase,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to DatabaseInit",
-        Status::InvalidArguments,
-    ));
-    let database = check_err!(database, error);
-
-    let mut exported = Box::from_raw(database.private_data as *mut ExportedDatabase<DriverType>);
+    let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() && exported.database.is_none());
 
     let driver = DriverType::default();
-    let opts = exported.options.take().unwrap();
-    let inner = driver.new_database_with_opts(opts.into_iter());
-    let inner = check_err!(inner, error);
-    exported.database = Some(inner);
+    let options = exported.options.take().expect("Broken invariant");
+    let database = driver.new_database_with_opts(options.into_iter());
+    let database = check_err!(database, error);
+    exported.database = Some(database);
 
-    database.private_data = Box::into_raw(exported) as *mut c_void;
     ADBC_STATUS_OK
 }
 
@@ -184,12 +207,7 @@ unsafe extern "C" fn database_set_option<DriverType: Driver + Default>(
     value: *const c_char,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to DatabaseSetOption",
-        Status::InvalidArguments,
-    ));
-    let database = check_err!(database, error);
-    let mut exported = Box::from_raw(database.private_data as *mut ExportedDatabase<DriverType>);
+    let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() ^ exported.database.is_some());
 
     let key = check_err!(CStr::from_ptr(key).to_str(), error);
@@ -198,12 +216,10 @@ unsafe extern "C" fn database_set_option<DriverType: Driver + Default>(
     if let Some(options) = exported.options.as_mut() {
         options.insert(key.into(), value.into());
     } else {
-        let inner = exported.database.as_mut().expect("Invariant violated");
-        let res = inner.set_option(key.into(), value.into());
-        check_err!(res, error);
+        let database = exported.database.as_mut().expect("Broken invariant");
+        check_err!(database.set_option(key.into(), value.into()), error);
     }
 
-    database.private_data = Box::into_raw(exported) as *mut c_void;
     ADBC_STATUS_OK
 }
 
@@ -212,13 +228,15 @@ unsafe extern "C" fn database_release<DriverType: Driver + Default>(
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
     let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to DatabaseRelease",
-        Status::InvalidArguments,
+        "Passed null database pointer",
+        Status::InvalidState,
     ));
     let database = check_err!(database, error);
     let exported = Box::from_raw(database.private_data as *mut ExportedDatabase<DriverType>);
+
     drop(exported);
     database.private_data = std::ptr::null_mut();
+
     ADBC_STATUS_OK
 }
 
@@ -228,12 +246,7 @@ unsafe extern "C" fn database_set_option_int<DriverType: Driver + Default>(
     value: i64,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to DatabaseSetOptionInt",
-        Status::InvalidArguments,
-    ));
-    let database = check_err!(database, error);
-    let mut exported = Box::from_raw(database.private_data as *mut ExportedDatabase<DriverType>);
+    let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() ^ exported.database.is_some());
 
     let key = check_err!(CStr::from_ptr(key).to_str(), error);
@@ -241,12 +254,10 @@ unsafe extern "C" fn database_set_option_int<DriverType: Driver + Default>(
     if let Some(options) = exported.options.as_mut() {
         options.insert(key.into(), value.into());
     } else {
-        let inner = exported.database.as_mut().expect("Invariant violated");
-        let res = inner.set_option(key.into(), value.into());
-        check_err!(res, error);
+        let database = exported.database.as_mut().expect("Broken invariant");
+        check_err!(database.set_option(key.into(), value.into()), error);
     }
 
-    database.private_data = Box::into_raw(exported) as *mut c_void;
     ADBC_STATUS_OK
 }
 
@@ -256,12 +267,7 @@ unsafe extern "C" fn database_get_option_int<DriverType: Driver + Default>(
     value: *mut i64,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to DatabaseGetOptionInt",
-        Status::InvalidArguments,
-    ));
-    let database = check_err!(database, error);
-    let mut exported = Box::from_raw(database.private_data as *mut ExportedDatabase<DriverType>);
+    let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() ^ exported.database.is_some());
 
     let key = check_err!(CStr::from_ptr(key).to_str(), error);
@@ -284,15 +290,12 @@ unsafe extern "C" fn database_get_option_int<DriverType: Driver + Default>(
             check_err!(Err(err), error);
         }
     } else {
-        let inner = exported.database.as_mut().expect("Invariant violated");
-        let optvalue = inner.get_option_int(key.into());
+        let database = exported.database.as_mut().expect("Broken invariant");
+        let optvalue = database.get_option_int(key.into());
         let optvalue = check_err!(optvalue, error);
         std::ptr::write_unaligned(value, optvalue);
     }
 
-    // TODO: if we return early (possible due to check_err! calls), this line is
-    // not executed, is this a problem?
-    database.private_data = Box::into_raw(exported) as *mut c_void;
     ADBC_STATUS_OK
 }
 
@@ -301,8 +304,8 @@ unsafe extern "C" fn connection_new<DriverType: Driver + Default>(
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
     let connection = connection.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to ConnectionNew",
-        Status::InvalidArguments,
+        "Passed null connection pointer",
+        Status::InvalidState,
     ));
     let connection = check_err!(connection, error);
 
@@ -320,39 +323,25 @@ unsafe extern "C" fn connection_init<DriverType: Driver + Default>(
     database: *mut FFI_AdbcDatabase,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    let connection = connection.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to ConnectionInit",
-        Status::InvalidArguments,
-    ));
-    let connection = check_err!(connection, error);
-    let mut exported_connection =
-        Box::from_raw(connection.private_data as *mut ExportedConnection<DriverType>);
-
+    let exported_connection = check_err!(connecton_private_data::<DriverType>(connection), error);
     debug_assert!(
         exported_connection.options.is_some() && exported_connection.connection.is_none()
     );
 
-    let database = database.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to ConnectionInit",
-        Status::InvalidArguments,
-    ));
-    let database = check_err!(database, error);
-    let exported_database =
-        Box::from_raw(database.private_data as *mut ExportedDatabase<DriverType>);
-
+    let exported_database = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported_database.database.is_some());
 
-    let opts = exported_connection.options.take().unwrap();
-    let inner = exported_database
+    let options = exported_connection
+        .options
+        .take()
+        .expect("Broken invariant");
+    let connection = exported_database
         .database
         .as_ref()
-        .unwrap()
-        .new_connection_with_opts(opts.into_iter());
-    let inner = check_err!(inner, error);
-    exported_connection.connection = Some(inner);
-
-    connection.private_data = Box::into_raw(exported_connection) as *mut c_void;
-    database.private_data = Box::into_raw(exported_database) as *mut c_void;
+        .expect("Broken invariant")
+        .new_connection_with_opts(options.into_iter());
+    let connection = check_err!(connection, error);
+    exported_connection.connection = Some(connection);
 
     ADBC_STATUS_OK
 }
@@ -362,12 +351,14 @@ unsafe extern "C" fn connection_release<DriverType: Driver + Default>(
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
     let connection = connection.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null pointer to ConnectionRelease",
-        Status::InvalidArguments,
+        "Passed null connection pointer",
+        Status::InvalidState,
     ));
     let connection = check_err!(connection, error);
+
     let exported = Box::from_raw(connection.private_data as *mut ExportedConnection<DriverType>);
     drop(exported);
     connection.private_data = std::ptr::null_mut();
+
     ADBC_STATUS_OK
 }
