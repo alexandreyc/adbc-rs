@@ -226,6 +226,19 @@ impl AsRef<str> for OptionConnection {
     }
 }
 
+impl From<&str> for OptionConnection {
+    fn from(value: &str) -> Self {
+        match value {
+            constants::ADBC_CONNECTION_OPTION_AUTOCOMMIT => Self::AutoCommit,
+            constants::ADBC_CONNECTION_OPTION_READ_ONLY => Self::ReadOnly,
+            constants::ADBC_CONNECTION_OPTION_CURRENT_CATALOG => Self::CurrentCatalog,
+            constants::ADBC_CONNECTION_OPTION_CURRENT_DB_SCHEMA => Self::CurrentSchema,
+            constants::ADBC_CONNECTION_OPTION_ISOLATION_LEVEL => Self::IsolationLevel,
+            key => Self::Other(key.into()),
+        }
+    }
+}
+
 /// Statement option key.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum OptionStatement {

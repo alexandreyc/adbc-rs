@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
+use std::hash::Hash;
 use std::os::raw::{c_char, c_void};
 
 use crate::check_err;
@@ -39,7 +40,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver 
         ConnectionGetTableTypes: None,
         ConnectionInit: Some(connection_init::<DriverType>),
         ConnectionNew: Some(connection_new::<DriverType>),
-        ConnectionSetOption: None,
+        ConnectionSetOption: Some(connection_set_option::<DriverType>),
         ConnectionReadPartition: None,
         ConnectionRelease: Some(connection_release::<DriverType>),
         ConnectionRollback: None,
@@ -71,9 +72,9 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver 
         ConnectionGetOptionInt: None,
         ConnectionGetStatistics: None,
         ConnectionGetStatisticNames: None,
-        ConnectionSetOptionBytes: None,
-        ConnectionSetOptionDouble: None,
-        ConnectionSetOptionInt: None,
+        ConnectionSetOptionBytes: Some(connection_set_option_bytes::<DriverType>),
+        ConnectionSetOptionDouble: Some(connection_set_option_double::<DriverType>),
+        ConnectionSetOptionInt: Some(connection_set_option_int::<DriverType>),
         StatementCancel: None,
         StatementExecuteSchema: None,
         StatementGetOption: None,
@@ -136,6 +137,78 @@ unsafe extern "C" fn release_ffi_driver(
     ADBC_STATUS_OK
 }
 
+// Option helpers
+
+unsafe fn get_option_int<'a, OptionType, Object>(
+    object: Option<&Object>,
+    options: &mut Option<HashMap<OptionType, OptionValue>>,
+    key: *const c_char,
+) -> Result<i64>
+where
+    OptionType: Hash + Eq + From<&'a str>,
+    Object: Optionable<Option = OptionType>,
+{
+    let key = CStr::from_ptr(key).to_str()?;
+
+    if let Some(options) = options.as_mut() {
+        let optvalue = options
+            .get(&key.into())
+            .ok_or(Error::with_message_and_status(
+                &format!("Option key not found: {}", key),
+                Status::NotFound,
+            ))?;
+        if let OptionValue::Int(optvalue) = optvalue {
+            Ok(*optvalue)
+        } else {
+            let err = Error::with_message_and_status(
+                &format!("Option value for key {:?} has wrong type", key),
+                Status::InvalidState,
+            );
+            Err(err)
+        }
+    } else {
+        let object = object.expect("Broken invariant");
+        let optvalue = object.get_option_int(key.into())?;
+        Ok(optvalue)
+    }
+}
+
+unsafe fn get_option_double<'a, OptionType, Object>(
+    object: Option<&Object>,
+    options: &mut Option<HashMap<OptionType, OptionValue>>,
+    key: *const c_char,
+) -> Result<f64>
+where
+    OptionType: Hash + Eq + From<&'a str>,
+    Object: Optionable<Option = OptionType>,
+{
+    let key = CStr::from_ptr(key).to_str()?;
+
+    if let Some(options) = options.as_mut() {
+        let optvalue = options
+            .get(&key.into())
+            .ok_or(Error::with_message_and_status(
+                &format!("Option key not found: {}", key),
+                Status::NotFound,
+            ))?;
+        if let OptionValue::Double(optvalue) = optvalue {
+            Ok(*optvalue)
+        } else {
+            let err = Error::with_message_and_status(
+                &format!("Option value for key {:?} has wrong type", key),
+                Status::InvalidState,
+            );
+            Err(err)
+        }
+    } else {
+        let object = object.expect("Broken invariant");
+        let optvalue = object.get_option_double(key.into())?;
+        Ok(optvalue)
+    }
+}
+
+// Database
+
 unsafe fn database_private_data<'a, DriverType: Driver + Default>(
     database: *mut FFI_AdbcDatabase,
 ) -> Result<&'a mut ExportedDatabase<DriverType>> {
@@ -146,21 +219,6 @@ unsafe fn database_private_data<'a, DriverType: Driver + Default>(
     let exported = database.private_data as *mut ExportedDatabase<DriverType>;
     let exported = exported.as_mut().ok_or(Error::with_message_and_status(
         "Uninitialized database",
-        Status::InvalidState,
-    ));
-    exported
-}
-
-unsafe fn connecton_private_data<'a, DriverType: Driver + Default>(
-    connection: *mut FFI_AdbcConnection,
-) -> Result<&'a mut ExportedConnection<DriverType>> {
-    let connection = connection.as_mut().ok_or(Error::with_message_and_status(
-        "Passed null connection pointer",
-        Status::InvalidState,
-    ))?;
-    let exported = connection.private_data as *mut ExportedConnection<DriverType>;
-    let exported = exported.as_mut().ok_or(Error::with_message_and_status(
-        "Uninitialized connection",
         Status::InvalidState,
     ));
     exported
@@ -333,33 +391,11 @@ unsafe extern "C" fn database_get_option_int<DriverType: Driver + Default>(
 ) -> FFI_AdbcStatusCode {
     let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() ^ exported.database.is_some());
-
-    let key = check_err!(CStr::from_ptr(key).to_str(), error);
-
-    if let Some(options) = exported.options.as_mut() {
-        let optvalue = options
-            .get(&key.into())
-            .ok_or(Error::with_message_and_status(
-                &format!("Database option key not found: {}", key),
-                Status::NotFound,
-            ));
-        let optvalue = check_err!(optvalue, error);
-        if let OptionValue::Int(optvalue) = optvalue {
-            std::ptr::write_unaligned(value, *optvalue);
-        } else {
-            let err = Error::with_message_and_status(
-                &format!("Database option value has wrong type: {}", key),
-                Status::InvalidState,
-            );
-            check_err!(Err(err), error);
-        }
-    } else {
-        let database = exported.database.as_mut().expect("Broken invariant");
-        let optvalue = database.get_option_int(key.into());
-        let optvalue = check_err!(optvalue, error);
-        std::ptr::write_unaligned(value, optvalue);
-    }
-
+    let optvalue = check_err!(
+        get_option_int(exported.database.as_ref(), &mut exported.options, key),
+        error
+    );
+    std::ptr::write_unaligned(value, optvalue);
     ADBC_STATUS_OK
 }
 
@@ -371,33 +407,11 @@ unsafe extern "C" fn database_get_option_double<DriverType: Driver + Default>(
 ) -> FFI_AdbcStatusCode {
     let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() ^ exported.database.is_some());
-
-    let key = check_err!(CStr::from_ptr(key).to_str(), error);
-
-    if let Some(options) = exported.options.as_mut() {
-        let optvalue = options
-            .get(&key.into())
-            .ok_or(Error::with_message_and_status(
-                &format!("Database option key not found: {}", key),
-                Status::NotFound,
-            ));
-        let optvalue = check_err!(optvalue, error);
-        if let OptionValue::Double(optvalue) = optvalue {
-            std::ptr::write_unaligned(value, *optvalue);
-        } else {
-            let err = Error::with_message_and_status(
-                &format!("Database option value has wrong type: {}", key),
-                Status::InvalidState,
-            );
-            check_err!(Err(err), error);
-        }
-    } else {
-        let database = exported.database.as_mut().expect("Broken invariant");
-        let optvalue = database.get_option_double(key.into());
-        let optvalue = check_err!(optvalue, error);
-        std::ptr::write_unaligned(value, optvalue);
-    }
-
+    let optvalue = check_err!(
+        get_option_double(exported.database.as_ref(), &mut exported.options, key),
+        error
+    );
+    std::ptr::write_unaligned(value, optvalue);
     ADBC_STATUS_OK
 }
 
@@ -447,6 +461,44 @@ unsafe extern "C" fn database_get_option_bytes<DriverType: Driver + Default>(
     ADBC_STATUS_OK
 }
 
+// Connection
+
+unsafe fn connection_private_data<'a, DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+) -> Result<&'a mut ExportedConnection<DriverType>> {
+    let connection = connection.as_mut().ok_or(Error::with_message_and_status(
+        "Passed null connection pointer",
+        Status::InvalidState,
+    ))?;
+    let exported = connection.private_data as *mut ExportedConnection<DriverType>;
+    let exported = exported.as_mut().ok_or(Error::with_message_and_status(
+        "Uninitialized connection",
+        Status::InvalidState,
+    ));
+    exported
+}
+
+unsafe fn connection_set_option_impl<DriverType: Driver + Default, Value: Into<OptionValue>>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: Value,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    debug_assert!(exported.options.is_some() ^ exported.connection.is_some());
+
+    let key = check_err!(CStr::from_ptr(key).to_str(), error);
+
+    if let Some(options) = exported.options.as_mut() {
+        options.insert(key.into(), value.into());
+    } else {
+        let connection = exported.connection.as_mut().expect("Broken invariant");
+        check_err!(connection.set_option(key.into(), value.into()), error);
+    }
+
+    ADBC_STATUS_OK
+}
+
 unsafe extern "C" fn connection_new<DriverType: Driver + Default>(
     connection: *mut FFI_AdbcConnection,
     error: *mut FFI_AdbcError,
@@ -471,18 +523,19 @@ unsafe extern "C" fn connection_init<DriverType: Driver + Default>(
     database: *mut FFI_AdbcDatabase,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    let exported_connection = check_err!(connecton_private_data::<DriverType>(connection), error);
-    debug_assert!(
-        exported_connection.options.is_some() && exported_connection.connection.is_none()
-    );
-
+    let exported_connection = check_err!(connection_private_data::<DriverType>(connection), error);
     let exported_database = check_err!(database_private_data::<DriverType>(database), error);
-    debug_assert!(exported_database.database.is_some());
+    debug_assert!(
+        exported_connection.options.is_some()
+            && exported_connection.connection.is_none()
+            && exported_database.database.is_some()
+    );
 
     let options = exported_connection
         .options
         .take()
         .expect("Broken invariant");
+
     let connection = exported_database
         .database
         .as_ref()
@@ -510,3 +563,96 @@ unsafe extern "C" fn connection_release<DriverType: Driver + Default>(
 
     ADBC_STATUS_OK
 }
+
+unsafe extern "C" fn connection_set_option<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: *const c_char,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let value = check_err!(CStr::from_ptr(value).to_str(), error);
+    connection_set_option_impl::<DriverType, &str>(connection, key, value, error)
+}
+
+unsafe extern "C" fn connection_set_option_int<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: i64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    connection_set_option_impl::<DriverType, i64>(connection, key, value, error)
+}
+
+unsafe extern "C" fn connection_set_option_double<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: f64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    connection_set_option_impl::<DriverType, f64>(connection, key, value, error)
+}
+
+unsafe extern "C" fn connection_set_option_bytes<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: *const u8,
+    length: usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let value = std::slice::from_raw_parts(value, length);
+    connection_set_option_impl::<DriverType, &[u8]>(connection, key, value, error)
+}
+
+unsafe extern "C" fn connection_get_option<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: *mut c_char,
+    length: *mut usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    todo!()
+}
+
+unsafe extern "C" fn connection_get_option_int<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: *mut i64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    debug_assert!(exported.options.is_some() ^ exported.connection.is_some());
+    let optvalue = check_err!(
+        get_option_int(exported.connection.as_ref(), &mut exported.options, key),
+        error
+    );
+    std::ptr::write_unaligned(value, optvalue);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_option_double<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: *mut f64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    debug_assert!(exported.options.is_some() ^ exported.connection.is_some());
+    let optvalue = check_err!(
+        get_option_double(exported.connection.as_ref(), &mut exported.options, key),
+        error
+    );
+    std::ptr::write_unaligned(value, optvalue);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_option_bytes<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    key: *const c_char,
+    value: *mut u8,
+    length: *mut usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    todo!()
+}
+
+// Statement
