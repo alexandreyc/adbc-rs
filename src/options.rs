@@ -302,6 +302,19 @@ impl AsRef<str> for OptionStatement {
     }
 }
 
+impl From<&str> for OptionStatement {
+    fn from(value: &str) -> Self {
+        match value {
+            constants::ADBC_INGEST_OPTION_MODE => Self::IngestMode,
+            constants::ADBC_INGEST_OPTION_TARGET_TABLE => Self::TargetTable,
+            constants::ADBC_STATEMENT_OPTION_INCREMENTAL => Self::Incremental,
+            constants::ADBC_STATEMENT_OPTION_PROGRESS => Self::Progress,
+            constants::ADBC_STATEMENT_OPTION_MAX_PROGRESS => Self::MaxProgress,
+            key => Self::Other(key.into()),
+        }
+    }
+}
+
 /// Isolation level value for key [IsolationLevel][OptionConnection::IsolationLevel].
 #[derive(Debug)]
 pub enum IsolationLevel {

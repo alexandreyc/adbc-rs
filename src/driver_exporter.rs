@@ -3,14 +3,14 @@ use std::ffi::{CStr, CString};
 use std::hash::Hash;
 use std::os::raw::{c_char, c_void};
 
-use crate::check_err;
 use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
 use crate::ffi::{
-    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcStatusCode,
+    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcStatement,
+    FFI_AdbcStatusCode,
 };
 use crate::options::{OptionConnection, OptionDatabase, OptionValue};
-use crate::{Database, Driver, Optionable};
+use crate::{check_err, Connection, Database, Driver, Optionable};
 
 /// Invariant: options.is_none() XOR database.is_none()
 struct ExportedDatabase<DriverType: Driver + Default> {
@@ -22,6 +22,11 @@ struct ExportedDatabase<DriverType: Driver + Default> {
 struct ExportedConnection<DriverType: Driver + Default> {
     options: Option<HashMap<OptionConnection, OptionValue>>, // Pre-init options
     connection: Option<<DriverType::DatabaseType as Database>::ConnectionType>,
+}
+
+struct ExportedStatement<DriverType: Driver + Default> {
+    statement:
+        <<DriverType::DatabaseType as Database>::ConnectionType as Connection>::StatementType,
 }
 
 pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver {
@@ -49,10 +54,10 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver 
         StatementExecuteQuery: None,
         StatementExecutePartitions: None,
         StatementGetParameterSchema: None,
-        StatementNew: None,
+        StatementNew: Some(statement_new::<DriverType>),
         StatementPrepare: None,
-        StatementRelease: None,
-        StatementSetOption: None,
+        StatementRelease: Some(statement_release::<DriverType>),
+        StatementSetOption: Some(statement_set_option::<DriverType>),
         StatementSetSqlQuery: None,
         StatementSetSubstraitPlan: None,
         ErrorGetDetailCount: None,
@@ -77,13 +82,13 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver 
         ConnectionSetOptionInt: Some(connection_set_option_int::<DriverType>),
         StatementCancel: None,
         StatementExecuteSchema: None,
-        StatementGetOption: None,
-        StatementGetOptionBytes: None,
-        StatementGetOptionDouble: None,
-        StatementGetOptionInt: None,
-        StatementSetOptionBytes: None,
-        StatementSetOptionDouble: None,
-        StatementSetOptionInt: None,
+        StatementGetOption: Some(statement_get_option::<DriverType>),
+        StatementGetOptionBytes: Some(statement_get_option_bytes::<DriverType>),
+        StatementGetOptionDouble: Some(statement_get_option_double::<DriverType>),
+        StatementGetOptionInt: Some(statement_get_option_int::<DriverType>),
+        StatementSetOptionBytes: Some(statement_set_option_bytes::<DriverType>),
+        StatementSetOptionDouble: Some(statement_set_option_double::<DriverType>),
+        StatementSetOptionInt: Some(statement_set_option_int::<DriverType>),
     }
 }
 
@@ -694,3 +699,173 @@ unsafe extern "C" fn connection_get_option_bytes<DriverType: Driver + Default>(
 }
 
 // Statement
+
+unsafe fn statement_private_data<'a, DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+) -> Result<&'a mut ExportedStatement<DriverType>> {
+    let statement = statement.as_mut().ok_or(Error::with_message_and_status(
+        "Passed null statement pointer",
+        Status::InvalidState,
+    ))?;
+    let exported = statement.private_data as *mut ExportedStatement<DriverType>;
+    let exported = exported.as_mut().ok_or(Error::with_message_and_status(
+        "Uninitialized statement",
+        Status::InvalidState,
+    ));
+    exported
+}
+
+unsafe fn statement_set_option_impl<DriverType: Driver + Default, Value: Into<OptionValue>>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: Value,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let key = check_err!(CStr::from_ptr(key).to_str(), error);
+    check_err!(
+        exported.statement.set_option(key.into(), value.into()),
+        error
+    );
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_new<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    statement: *mut FFI_AdbcStatement,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported_connection = check_err!(connection_private_data::<DriverType>(connection), error);
+    let inner_connection = exported_connection
+        .connection
+        .as_ref()
+        .expect("Broken invariant");
+
+    let statement = statement.as_mut().ok_or(Error::with_message_and_status(
+        "Passed null statement pointer",
+        Status::InvalidState,
+    ));
+    let statement = check_err!(statement, error);
+    let inner_statement = check_err!(inner_connection.new_statement(), error);
+
+    let exported = Box::new(ExportedStatement::<DriverType> {
+        statement: inner_statement,
+    });
+    statement.private_data = Box::into_raw(exported) as *mut c_void;
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_release<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let statement = statement.as_mut().ok_or(Error::with_message_and_status(
+        "Passed null statement pointer",
+        Status::InvalidState,
+    ));
+    let statement = check_err!(statement, error);
+    let exported = Box::from_raw(statement.private_data as *mut ExportedStatement<DriverType>);
+
+    drop(exported);
+    statement.private_data = std::ptr::null_mut();
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_set_option<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: *const c_char,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let value = check_err!(CStr::from_ptr(value).to_str(), error);
+    statement_set_option_impl::<DriverType, &str>(statement, key, value, error)
+}
+
+unsafe extern "C" fn statement_set_option_int<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: i64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    statement_set_option_impl::<DriverType, i64>(statement, key, value, error)
+}
+
+unsafe extern "C" fn statement_set_option_double<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: f64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    statement_set_option_impl::<DriverType, f64>(statement, key, value, error)
+}
+
+unsafe extern "C" fn statement_set_option_bytes<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: *const u8,
+    length: usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let value = std::slice::from_raw_parts(value, length);
+    statement_set_option_impl::<DriverType, &[u8]>(statement, key, value, error)
+}
+
+unsafe extern "C" fn statement_get_option<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: *mut c_char,
+    length: *mut usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let optvalue = get_option(Some(&exported.statement), &mut None, key);
+    let optvalue = check_err!(optvalue, error);
+    check_err!(copy_string(&optvalue, value, length), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_get_option_int<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: *mut i64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let optvalue = check_err!(
+        get_option_int(Some(&exported.statement), &mut None, key),
+        error
+    );
+    std::ptr::write_unaligned(value, optvalue);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_get_option_double<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: *mut f64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let optvalue = check_err!(
+        get_option_double(Some(&exported.statement), &mut None, key),
+        error
+    );
+    std::ptr::write_unaligned(value, optvalue);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_get_option_bytes<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    key: *const c_char,
+    value: *mut u8,
+    length: *mut usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let optvalue = get_option_bytes(Some(&exported.statement), &mut None, key);
+    let optvalue = check_err!(optvalue, error);
+    check_err!(copy_bytes(&optvalue, value, length), error);
+    ADBC_STATUS_OK
+}

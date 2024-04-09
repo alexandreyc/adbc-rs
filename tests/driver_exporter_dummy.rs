@@ -1,7 +1,9 @@
 use adbc_rs::{
     driver_manager::DriverManager,
-    options::{AdbcVersion, IsolationLevel, OptionConnection, OptionDatabase},
-    Database, Driver, Optionable,
+    options::{
+        AdbcVersion, IngestMode, IsolationLevel, OptionConnection, OptionDatabase, OptionStatement,
+    },
+    Connection, Database, Driver, Optionable,
 };
 
 const OPTION_STRING_LONG: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -230,4 +232,74 @@ fn test_connection_options() {
         .get_option_bytes(OptionConnection::Other("post.bytes.long".into()))
         .unwrap();
     assert_eq!(value, OPTION_BYTES_LONG);
+}
+
+#[test]
+fn test_statement_options() {
+    let driver = get_driver();
+    let database = driver.new_database().unwrap();
+    let connection = database.new_connection().unwrap();
+    let mut statement = connection.new_statement().unwrap();
+
+    statement
+        .set_option(OptionStatement::Incremental, "true".into())
+        .unwrap();
+    let value = statement
+        .get_option_string(OptionStatement::Incremental)
+        .unwrap();
+    assert_eq!(value, "true");
+
+    statement
+        .set_option(OptionStatement::TargetTable, 42.into())
+        .unwrap();
+    let value = statement
+        .get_option_int(OptionStatement::TargetTable)
+        .unwrap();
+    assert_eq!(value, 42);
+
+    statement
+        .set_option(OptionStatement::MaxProgress, 3.14.into())
+        .unwrap();
+    let value = statement
+        .get_option_double(OptionStatement::MaxProgress)
+        .unwrap();
+    assert_eq!(value, 3.14);
+
+    statement
+        .set_option(OptionStatement::Other("bytes".into()), b"Hello".into())
+        .unwrap();
+    let value = statement
+        .get_option_bytes(OptionStatement::Other("bytes".into()))
+        .unwrap();
+    assert_eq!(value, b"Hello");
+
+    statement
+        .set_option(OptionStatement::IngestMode, IngestMode::CreateAppend.into())
+        .unwrap();
+    let value = statement
+        .get_option_string(OptionStatement::IngestMode)
+        .unwrap();
+    assert_eq!(value, Into::<String>::into(IngestMode::CreateAppend));
+
+    statement
+        .set_option(
+            OptionStatement::Other("bytes.long".into()),
+            OPTION_BYTES_LONG.into(),
+        )
+        .unwrap();
+    let value = statement
+        .get_option_bytes(OptionStatement::Other("bytes.long".into()))
+        .unwrap();
+    assert_eq!(value, OPTION_BYTES_LONG);
+
+    statement
+        .set_option(
+            OptionStatement::Other("string.long".into()),
+            OPTION_STRING_LONG.into(),
+        )
+        .unwrap();
+    let value = statement
+        .get_option_string(OptionStatement::Other("string.long".into()))
+        .unwrap();
+    assert_eq!(value, OPTION_STRING_LONG);
 }
