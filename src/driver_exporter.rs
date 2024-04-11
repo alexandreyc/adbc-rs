@@ -3,6 +3,9 @@ use std::ffi::{CStr, CString};
 use std::hash::Hash;
 use std::os::raw::{c_char, c_void};
 
+use arrow::ffi::FFI_ArrowSchema;
+use arrow::ffi_stream::FFI_ArrowArrayStream;
+
 use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
 use crate::ffi::{
@@ -29,7 +32,7 @@ struct ExportedStatement<DriverType: Driver + Default> {
         <<DriverType::DatabaseType as Database>::ConnectionType as Connection>::StatementType,
 }
 
-pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver {
+pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_AdbcDriver {
     FFI_AdbcDriver {
         private_data: std::ptr::null_mut(),
         private_manager: std::ptr::null(),
@@ -41,8 +44,8 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default>() -> FFI_AdbcDriver 
         ConnectionCommit: None,
         ConnectionGetInfo: None,
         ConnectionGetObjects: None,
-        ConnectionGetTableSchema: None,
-        ConnectionGetTableTypes: None,
+        ConnectionGetTableSchema: Some(connection_get_table_schema::<DriverType>),
+        ConnectionGetTableTypes: Some(connection_get_table_types::<DriverType>),
         ConnectionInit: Some(connection_init::<DriverType>),
         ConnectionNew: Some(connection_new::<DriverType>),
         ConnectionSetOption: Some(connection_set_option::<DriverType>),
@@ -695,6 +698,67 @@ unsafe extern "C" fn connection_get_option_bytes<DriverType: Driver + Default>(
     let optvalue = get_option_bytes(exported.connection.as_ref(), &mut exported.options, key);
     let optvalue = check_err!(optvalue, error);
     check_err!(copy_bytes(&optvalue, value, length), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_table_types<DriverType: Driver + Default + 'static>(
+    connection: *mut FFI_AdbcConnection,
+    stream: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+    let reader = check_err!(connection.get_table_types(), error);
+    let reader = Box::new(reader);
+    let reader = FFI_ArrowArrayStream::new(reader);
+    std::ptr::write_unaligned(stream, reader);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_table_schema<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    catalog: *const c_char,
+    db_schema: *const c_char,
+    table: *const c_char,
+    schema: *mut FFI_ArrowSchema,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+
+    let catalog = catalog
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let catalog = check_err!(catalog, error);
+
+    let db_schema = db_schema
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let db_schema = check_err!(db_schema, error);
+
+    let table = table
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let table = check_err!(table, error);
+
+    if let Some(table) = table {
+        let table_schema = connection.get_table_schema(catalog, db_schema, table);
+        let table_schema = check_err!(table_schema, error);
+        let table_schema: FFI_ArrowSchema = check_err!(table_schema.try_into(), error);
+        std::ptr::write_unaligned(schema, table_schema);
+    } else {
+        check_err!(
+            Err(Error::with_message_and_status(
+                "Passed null table pointer",
+                Status::InvalidState
+            )),
+            error
+        );
+    }
+
     ADBC_STATUS_OK
 }
 

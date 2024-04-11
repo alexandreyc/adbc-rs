@@ -6,6 +6,11 @@ use adbc_rs::{
     Connection, Database, Driver, Optionable,
 };
 
+use arrow::array::as_string_array;
+use arrow::datatypes::{DataType, Field, Schema};
+
+mod common;
+
 const OPTION_STRING_LONG: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPTION_BYTES_LONG: &[u8] = b"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
@@ -302,4 +307,31 @@ fn test_statement_options() {
         .get_option_string(OptionStatement::Other("string.long".into()))
         .unwrap();
     assert_eq!(value, OPTION_STRING_LONG);
+}
+
+#[test]
+fn test_connection() {
+    let driver = get_driver();
+    let database = driver.new_database().unwrap();
+    let connection = database.new_connection().unwrap();
+
+    // get_table_types
+    let table_types = common::concat_reader(connection.get_table_types().unwrap());
+    assert_eq!(table_types.num_columns(), 1);
+    assert_eq!(table_types.num_rows(), 2);
+
+    let array = as_string_array(table_types.column(0));
+    let array: Vec<Option<&str>> = array.iter().collect();
+    assert_eq!(array, vec![Some("table"), Some("view")]);
+
+    // get_table_schema
+    let schema_actual = connection
+        .get_table_schema(Some("default"), Some("default"), "default")
+        .unwrap();
+    let schema_expected = Schema::new(vec![
+        Field::new("a", DataType::UInt32, true),
+        Field::new("b", DataType::Float64, false),
+        Field::new("c", DataType::Utf8, true),
+    ]);
+    assert_eq!(schema_actual, schema_expected);
 }

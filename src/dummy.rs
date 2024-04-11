@@ -1,6 +1,11 @@
+use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
+use arrow::array::StringArray;
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use arrow::error::ArrowError;
 use arrow::ffi_stream::ArrowArrayStreamReader;
+use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use crate::{
     error::{Error, Result, Status},
@@ -9,6 +14,35 @@ use crate::{
     },
     Connection, Database, Driver, Optionable, Statement,
 };
+
+pub struct SingleBatchReader {
+    batch: Option<RecordBatch>,
+    schema: SchemaRef,
+}
+
+impl SingleBatchReader {
+    pub fn new(batch: RecordBatch) -> Self {
+        let schema = batch.schema();
+        Self {
+            batch: Some(batch),
+            schema,
+        }
+    }
+}
+
+impl Iterator for SingleBatchReader {
+    type Item = std::result::Result<RecordBatch, ArrowError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Ok(self.batch.take()).transpose()
+    }
+}
+
+impl RecordBatchReader for SingleBatchReader {
+    fn schema(&self) -> SchemaRef {
+        self.schema.clone()
+    }
+}
 
 fn set_option<T>(options: &mut HashMap<T, OptionValue>, key: T, value: OptionValue) -> Result<()>
 where
@@ -98,6 +132,13 @@ where
     }
 }
 
+/// A dummy driver mainly used for example and testing.
+///
+/// It contains:
+/// - Two table types: `table` and `view`
+/// - One catalog: `default`
+/// - One database schema: `default`
+/// - One table: `default`
 #[derive(Default)]
 pub struct DummyDriver {}
 
@@ -252,16 +293,41 @@ impl Connection for DummyConnection {
 
     fn get_table_schema(
         &self,
-        _catalog: Option<&str>,
-        _db_schema: Option<&str>,
-        _table_name: &str,
+        catalog: Option<&str>,
+        db_schema: Option<&str>,
+        table_name: &str,
     ) -> Result<arrow::datatypes::Schema> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        let catalog = catalog.unwrap_or("default");
+        let db_schema = db_schema.unwrap_or("default");
+
+        if catalog == "default" && db_schema == "default" && table_name == "default" {
+            let schema = Schema::new(vec![
+                Field::new("a", DataType::UInt32, true),
+                Field::new("b", DataType::Float64, false),
+                Field::new("c", DataType::Utf8, true),
+            ]);
+            Ok(schema)
+        } else {
+            Err(Error::with_message_and_status(
+                &format!(
+                    "Table {}.{}.{} does not exist",
+                    catalog, db_schema, table_name
+                ),
+                Status::NotFound,
+            ))
+        }
     }
 
-    #[allow(refining_impl_trait)]
-    fn get_table_types(&self) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn get_table_types(&self) -> Result<impl RecordBatchReader> {
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "table_type",
+            DataType::Utf8,
+            false,
+        )]));
+        let array = Arc::new(StringArray::from(vec!["table", "view"]));
+        let batch = RecordBatch::try_new(schema, vec![array])?;
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
     #[allow(refining_impl_trait)]

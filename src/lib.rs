@@ -279,7 +279,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     /// Field Name     | Field Type
     /// ---------------|--------------
     /// table_type     | utf8 not null
-    fn get_table_types(&self) -> Result<impl RecordBatchReader>;
+    fn get_table_types(&self) -> Result<impl RecordBatchReader + Send>;
 
     /// Get the names of statistics specific to this driver.
     ///
