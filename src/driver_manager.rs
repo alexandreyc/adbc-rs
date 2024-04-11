@@ -719,21 +719,24 @@ impl Connection for ManagedConnection {
         let db_schema = db_schema.map(CString::new).transpose()?;
         let table_name = table_name.map(CString::new).transpose()?;
         let column_name = column_name.map(CString::new).transpose()?;
-        let mut table_type = table_type
+        let table_type = table_type
             .map(|t| {
                 t.iter()
                     .map(|x| CString::new(*x))
                     .collect::<std::result::Result<Vec<CString>, _>>()
             })
-            .transpose()?
-            .map(|v| v.into_iter().map(|c| c.as_ptr()))
-            .map(|c| c.collect::<Vec<_>>());
+            .transpose()?;
 
-        let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
-        let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
-        let table_name_ptr = table_name.map(|c| c.as_ptr()).unwrap_or(null());
-        let column_name_ptr = column_name.map(|c| c.as_ptr()).unwrap_or(null());
-        let table_type_ptr = match &mut table_type {
+        let catalog_ptr = catalog.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+        let db_schema_ptr = db_schema.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+        let table_name_ptr = table_name.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+        let column_name_ptr = column_name.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+
+        let mut table_type_ptrs = table_type
+            .as_ref()
+            .map(|v| v.iter().map(|c| c.as_ptr()))
+            .map(|c| c.collect::<Vec<_>>());
+        let table_type_ptr = match table_type_ptrs.as_mut() {
             None => null(),
             Some(t) => {
                 t.push(null());
@@ -783,9 +786,9 @@ impl Connection for ManagedConnection {
         let db_schema = db_schema.map(CString::new).transpose()?;
         let table_name = table_name.map(CString::new).transpose()?;
 
-        let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
-        let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
-        let table_name_ptr = table_name.map(|c| c.as_ptr()).unwrap_or(null());
+        let catalog_ptr = catalog.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+        let db_schema_ptr = db_schema.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+        let table_name_ptr = table_name.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
 
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();
@@ -840,8 +843,8 @@ impl Connection for ManagedConnection {
         let db_schema = db_schema.map(CString::new).transpose()?;
         let table_name = CString::new(table_name)?;
 
-        let catalog_ptr = catalog.map(|c| c.as_ptr()).unwrap_or(null());
-        let db_schema_ptr = db_schema.map(|c| c.as_ptr()).unwrap_or(null());
+        let catalog_ptr = catalog.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
+        let db_schema_ptr = db_schema.as_ref().map(|c| c.as_ptr()).unwrap_or(null());
         let table_name_ptr = table_name.as_ptr();
 
         let mut error = ffi::FFI_AdbcError::default();
