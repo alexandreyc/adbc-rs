@@ -384,7 +384,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     /// # Arguments
     ///
     /// - `partition` - The partition descriptor.
-    fn read_partition(&self, partition: &[u8]) -> Result<impl RecordBatchReader>;
+    fn read_partition(&self, partition: &[u8]) -> Result<impl RecordBatchReader + Send>;
 }
 
 /// A handle to a statement.

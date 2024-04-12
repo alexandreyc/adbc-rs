@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use arrow::array::{
-    Array, BooleanArray, Int16Array, Int32Array, Int64Array, ListArray, MapArray, StringArray,
-    StructArray, UInt32Array, UnionArray,
+    Array, BooleanArray, Float64Array, Int16Array, Int32Array, Int64Array, ListArray, MapArray,
+    StringArray, StructArray, UInt32Array, UnionArray,
 };
 use arrow::buffer::{Buffer, OffsetBuffer, ScalarBuffer};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -445,9 +445,18 @@ impl Connection for DummyConnection {
         Ok(reader)
     }
 
-    #[allow(refining_impl_trait)]
-    fn read_partition(&self, _partition: &[u8]) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn read_partition(&self, _partition: &[u8]) -> Result<impl RecordBatchReader> {
+        let schema = Arc::new(self.get_table_schema(None, None, "default")?);
+        let batch = RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(UInt32Array::from(vec![1, 2, 3])),
+                Arc::new(Float64Array::from(vec![1.5, 2.5, 3.5])),
+                Arc::new(StringArray::from(vec!["A", "B", "C"])),
+            ],
+        )?;
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
     fn rollback(&self) -> Result<()> {

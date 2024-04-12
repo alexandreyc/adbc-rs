@@ -49,7 +49,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         ConnectionInit: Some(connection_init::<DriverType>),
         ConnectionNew: Some(connection_new::<DriverType>),
         ConnectionSetOption: Some(connection_set_option::<DriverType>),
-        ConnectionReadPartition: None,
+        ConnectionReadPartition: Some(connection_read_partition::<DriverType>),
         ConnectionRelease: Some(connection_release::<DriverType>),
         ConnectionRollback: Some(connection_rollback::<DriverType>),
         StatementBind: None,
@@ -829,6 +829,25 @@ unsafe extern "C" fn connection_get_statistic_names<DriverType: Driver + Default
     let connection = exported.connection.as_ref().expect("Broken invariant");
 
     let reader = check_err!(connection.get_statistic_names(), error);
+    let reader = Box::new(reader);
+    let reader = FFI_ArrowArrayStream::new(reader);
+    std::ptr::write_unaligned(stream, reader);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_read_partition<DriverType: Driver + Default + 'static>(
+    connection: *mut FFI_AdbcConnection,
+    partition: *const u8,
+    length: usize,
+    stream: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+
+    let partition = std::slice::from_raw_parts(partition, length);
+    let reader = check_err!(connection.read_partition(partition), error);
     let reader = Box::new(reader);
     let reader = FFI_ArrowArrayStream::new(reader);
     std::ptr::write_unaligned(stream, reader);

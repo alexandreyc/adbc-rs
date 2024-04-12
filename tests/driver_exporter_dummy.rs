@@ -417,3 +417,22 @@ fn test_connection_get_statistic_names() {
     );
     assert_eq!(exported_names, native_names);
 }
+
+#[test]
+fn test_connection_read_partition() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_partition =
+        common::concat_reader(exported_connection.read_partition(b"").unwrap());
+    let native_partition = common::concat_reader(native_connection.read_partition(b"").unwrap());
+
+    assert_eq!(
+        exported_partition.schema(),
+        exported_connection
+            .get_table_schema(None, None, "default")
+            .unwrap()
+            .into()
+    );
+    assert_eq!(exported_partition, native_partition);
+}
