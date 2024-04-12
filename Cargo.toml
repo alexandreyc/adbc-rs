@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Alexandre Crayssac <alexandre@crayssac.net>"]
 license = "Apache-2.0"
-license-file = "LICENSE.txt"
 
 [dependencies]
-arrow = { version = "50.0.0", default-features = false, features = ["ffi"] }
+arrow = { version = "51.0.0", default-features = false, features = ["ffi"] }
 libloading = "0.8"
+once_cell = "1.19.0"
+
+[lib]
+crate-type = ["lib", "cdylib"]

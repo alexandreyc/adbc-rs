@@ -12,7 +12,7 @@ use crate::ffi::{
     FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcStatement,
     FFI_AdbcStatusCode,
 };
-use crate::options::{OptionConnection, OptionDatabase, OptionValue};
+use crate::options::{InfoCode, OptionConnection, OptionDatabase, OptionValue};
 use crate::{check_err, Connection, Database, Driver, Optionable};
 
 /// Invariant: options.is_none() XOR database.is_none()
@@ -42,7 +42,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         DatabaseSetOption: Some(database_set_option::<DriverType>),
         DatabaseRelease: Some(database_release::<DriverType>),
         ConnectionCommit: None,
-        ConnectionGetInfo: None,
+        ConnectionGetInfo: Some(connection_get_info::<DriverType>),
         ConnectionGetObjects: None,
         ConnectionGetTableSchema: Some(connection_get_table_schema::<DriverType>),
         ConnectionGetTableTypes: Some(connection_get_table_types::<DriverType>),
@@ -758,6 +758,34 @@ unsafe extern "C" fn connection_get_table_schema<DriverType: Driver + Default>(
             error
         );
     }
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_info<DriverType: Driver + Default + 'static>(
+    connection: *mut FFI_AdbcConnection,
+    info_codes: *const u32,
+    length: usize,
+    stream: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+
+    let info_codes = if info_codes.is_null() {
+        None
+    } else {
+        let info_codes = std::slice::from_raw_parts(info_codes, length);
+        let info_codes: Result<Vec<InfoCode>> =
+            info_codes.iter().map(|c| InfoCode::try_from(*c)).collect();
+        let info_codes = check_err!(info_codes, error);
+        Some(info_codes)
+    };
+
+    let reader = check_err!(connection.get_info(info_codes), error);
+    let reader = Box::new(reader);
+    let reader = FFI_ArrowArrayStream::new(reader);
+    std::ptr::write_unaligned(stream, reader);
 
     ADBC_STATUS_OK
 }

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use adbc_rs::driver_manager::{
@@ -8,6 +9,7 @@ use adbc_rs::error::Status;
 use adbc_rs::options::{
     InfoCode, IngestMode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement,
 };
+use adbc_rs::schemas;
 use adbc_rs::{Connection, Database, Driver, Optionable, Statement};
 
 use arrow::array::{as_string_array, Array, Float64Array, Int64Array, StringArray};
@@ -120,6 +122,7 @@ pub fn test_connection_read_partition(connection: &ManagedConnection) {
 pub fn test_connection_get_table_types(connection: &ManagedConnection, actual: &[&str]) {
     let got = concat_reader(connection.get_table_types().unwrap());
     assert_eq!(got.num_columns(), 1);
+    assert_eq!(got.schema(), *schemas::GET_TABLE_TYPES.deref());
 
     let got: Vec<Option<&str>> = as_string_array(got.column(0)).iter().collect();
     assert!(got.iter().all(|x| x.is_some()));
@@ -133,10 +136,11 @@ pub fn test_connection_get_info(connection: &ManagedConnection, actual_num_info:
     let info = concat_reader(connection.get_info(None).unwrap());
     assert_eq!(info.num_columns(), 2);
     assert_eq!(info.num_rows(), actual_num_info);
+    assert_eq!(info.schema(), *schemas::GET_INFO_SCHEMA.deref());
 
     let info = concat_reader(
         connection
-            .get_info(Some(&[
+            .get_info(Some(vec![
                 InfoCode::VendorName,
                 InfoCode::DriverVersion,
                 InfoCode::DriverName,
@@ -146,6 +150,7 @@ pub fn test_connection_get_info(connection: &ManagedConnection, actual_num_info:
     );
     assert_eq!(info.num_columns(), 2);
     assert_eq!(info.num_rows(), 4);
+    assert_eq!(info.schema(), *schemas::GET_INFO_SCHEMA.deref());
 }
 
 pub fn test_connection_get_objects(

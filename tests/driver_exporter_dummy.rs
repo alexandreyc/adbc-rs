@@ -1,27 +1,50 @@
+use std::ops::Deref;
+
+use adbc_rs::driver_manager::{ManagedConnection, ManagedDatabase, ManagedStatement};
+use adbc_rs::dummy::{DummyConnection, DummyDatabase, DummyStatement};
+
+use adbc_rs::options::InfoCode;
 use adbc_rs::{
     driver_manager::DriverManager,
+    dummy::DummyDriver,
     options::{
         AdbcVersion, IngestMode, IsolationLevel, OptionConnection, OptionDatabase, OptionStatement,
     },
-    Connection, Database, Driver, Optionable,
+    schemas, Connection, Database, Driver, Optionable,
 };
 
-use arrow::array::as_string_array;
-use arrow::datatypes::{DataType, Field, Schema};
-
-mod common;
+pub mod common;
 
 const OPTION_STRING_LONG: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPTION_BYTES_LONG: &[u8] = b"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
-fn get_driver() -> DriverManager {
+fn get_exported() -> (
+    DriverManager,
+    ManagedDatabase,
+    ManagedConnection,
+    ManagedStatement,
+) {
     // TODO: make something more robust
-    DriverManager::load_dynamic("adbc_rs", Some(b"DummyDriverInit"), AdbcVersion::V110).unwrap()
+    let driver =
+        DriverManager::load_dynamic("adbc_rs", Some(b"DummyDriverInit"), AdbcVersion::V110)
+            .unwrap();
+    let database = driver.new_database().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
+    (driver, database, connection, statement)
+}
+
+fn get_native() -> (DummyDriver, DummyDatabase, DummyConnection, DummyStatement) {
+    let driver = DummyDriver {};
+    let database = driver.new_database().unwrap();
+    let connection = database.new_connection().unwrap();
+    let statement = connection.new_statement().unwrap();
+    (driver, database, connection, statement)
 }
 
 #[test]
 fn test_database_options() {
-    let driver = get_driver();
+    let (driver, _, _, _) = get_exported();
 
     // Pre-init options.
     let options = [
@@ -125,8 +148,7 @@ fn test_database_options() {
 
 #[test]
 fn test_connection_options() {
-    let driver = get_driver();
-    let database = driver.new_database().unwrap();
+    let (_, database, _, _) = get_exported();
 
     // Pre-init options
     let options = [
@@ -241,10 +263,7 @@ fn test_connection_options() {
 
 #[test]
 fn test_statement_options() {
-    let driver = get_driver();
-    let database = driver.new_database().unwrap();
-    let connection = database.new_connection().unwrap();
-    let mut statement = connection.new_statement().unwrap();
+    let (_, _, _, mut statement) = get_exported();
 
     statement
         .set_option(OptionStatement::Incremental, "true".into())
@@ -310,28 +329,62 @@ fn test_statement_options() {
 }
 
 #[test]
-fn test_connection() {
-    let driver = get_driver();
-    let database = driver.new_database().unwrap();
-    let connection = database.new_connection().unwrap();
+fn test_connection_get_table_types() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
 
-    // get_table_types
-    let table_types = common::concat_reader(connection.get_table_types().unwrap());
-    assert_eq!(table_types.num_columns(), 1);
-    assert_eq!(table_types.num_rows(), 2);
+    let exported_table_types =
+        common::concat_reader(exported_connection.get_table_types().unwrap());
+    let native_table_types = common::concat_reader(native_connection.get_table_types().unwrap());
 
-    let array = as_string_array(table_types.column(0));
-    let array: Vec<Option<&str>> = array.iter().collect();
-    assert_eq!(array, vec![Some("table"), Some("view")]);
+    assert_eq!(
+        exported_table_types.schema(),
+        *schemas::GET_TABLE_TYPES.deref()
+    );
+    assert_eq!(exported_table_types, native_table_types);
+}
 
-    // get_table_schema
-    let schema_actual = connection
+#[test]
+fn test_connection_get_table_schema() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_schema = exported_connection
         .get_table_schema(Some("default"), Some("default"), "default")
         .unwrap();
-    let schema_expected = Schema::new(vec![
-        Field::new("a", DataType::UInt32, true),
-        Field::new("b", DataType::Float64, false),
-        Field::new("c", DataType::Utf8, true),
-    ]);
-    assert_eq!(schema_actual, schema_expected);
+    let native_schema = native_connection
+        .get_table_schema(Some("default"), Some("default"), "default")
+        .unwrap();
+
+    assert_eq!(exported_schema, native_schema);
+}
+
+#[test]
+fn test_connection_get_info() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_info = common::concat_reader(exported_connection.get_info(None).unwrap());
+    let native_info = common::concat_reader(native_connection.get_info(None).unwrap());
+    assert_eq!(exported_info.schema(), *schemas::GET_INFO_SCHEMA.deref());
+    assert_eq!(exported_info, native_info);
+
+    let exported_info = common::concat_reader(
+        exported_connection
+            .get_info(Some(vec![
+                InfoCode::DriverAdbcVersion,
+                InfoCode::DriverName,
+            ]))
+            .unwrap(),
+    );
+    let native_info = common::concat_reader(
+        native_connection
+            .get_info(Some(vec![
+                InfoCode::DriverAdbcVersion,
+                InfoCode::DriverName,
+            ]))
+            .unwrap(),
+    );
+    assert_eq!(exported_info.schema(), *schemas::GET_INFO_SCHEMA.deref());
+    assert_eq!(exported_info, native_info);
 }

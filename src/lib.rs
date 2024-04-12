@@ -39,6 +39,7 @@ pub mod dummy;
 pub mod error;
 pub(crate) mod ffi;
 pub mod options;
+pub mod schemas;
 
 pub use ffi::FFI_AdbcDriverInitFunc as AdbcDriverInitFunc;
 
@@ -146,7 +147,10 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     /// int32_bitmask (3)           | int32
     /// string_list (4)             | list\<utf8\>
     /// int32_to_int32_list_map (5) | map\<int32, list\<int32\>\>
-    fn get_info(&self, codes: Option<&[options::InfoCode]>) -> Result<impl RecordBatchReader>;
+    fn get_info(
+        &self,
+        codes: Option<Vec<options::InfoCode>>,
+    ) -> Result<impl RecordBatchReader + Send>;
 
     /// Get a hierarchical view of all catalogs, database schemas, tables, and
     /// columns.

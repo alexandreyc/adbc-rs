@@ -1,7 +1,11 @@
 use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use arrow::array::StringArray;
+use arrow::array::{
+    Array, BooleanArray, Int32Array, Int64Array, ListArray, MapArray, StringArray, StructArray,
+    UInt32Array, UnionArray,
+};
+use arrow::buffer::{Buffer, OffsetBuffer, ScalarBuffer};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
 use arrow::ffi_stream::ArrowArrayStreamReader;
@@ -15,6 +19,7 @@ use crate::{
     Connection, Database, Driver, Optionable, Statement,
 };
 
+#[derive(Debug)]
 pub struct SingleBatchReader {
     batch: Option<RecordBatch>,
     schema: SchemaRef,
@@ -257,9 +262,110 @@ impl Connection for DummyConnection {
         Err(Error::with_message_and_status("", Status::NotImplemented))
     }
 
-    #[allow(refining_impl_trait)]
-    fn get_info(&self, _codes: Option<&[InfoCode]>) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn get_info(&self, _codes: Option<Vec<InfoCode>>) -> Result<impl RecordBatchReader> {
+        let string_value_array = StringArray::from(vec!["MyVendorName"]);
+        let bool_value_array = BooleanArray::from(vec![true]);
+        let int64_value_array = Int64Array::from(vec![42]);
+        let int32_bitmask_array = Int32Array::from(vec![1337]);
+        let string_list_array = ListArray::new(
+            Arc::new(Field::new("item", DataType::Utf8, true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 2])),
+            Arc::new(StringArray::from(vec!["Hello", "World"])),
+            None,
+        );
+
+        let int32_to_int32_list_map_array = MapArray::try_new(
+            Arc::new(Field::new_struct(
+                "entries",
+                vec![
+                    Field::new("key", DataType::Int32, false),
+                    Field::new_list("value", Field::new_list_field(DataType::Int32, true), true),
+                ],
+                false,
+            )),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 2])),
+            StructArray::new(
+                vec![
+                    Field::new("key", DataType::Int32, false),
+                    Field::new_list("value", Field::new_list_field(DataType::Int32, true), true),
+                ]
+                .into(),
+                vec![
+                    Arc::new(Int32Array::from(vec![42, 1337])),
+                    Arc::new(ListArray::new(
+                        Arc::new(Field::new("item", DataType::Int32, true)),
+                        OffsetBuffer::new(ScalarBuffer::from(vec![0, 3, 6])),
+                        Arc::new(Int32Array::from(vec![1, 2, 3, 1, 4, 9])),
+                        None,
+                    )),
+                ],
+                None,
+            ),
+            None,
+            false,
+        )?;
+
+        let name_array = UInt32Array::from(vec![
+            Into::<u32>::into(&InfoCode::VendorName),
+            Into::<u32>::into(&InfoCode::VendorVersion),
+            Into::<u32>::into(&InfoCode::VendorArrowVersion),
+            Into::<u32>::into(&InfoCode::DriverName),
+            Into::<u32>::into(&InfoCode::DriverVersion),
+            Into::<u32>::into(&InfoCode::DriverArrowVersion),
+        ]);
+
+        let type_id_buffer = Buffer::from_slice_ref([0_i8, 1, 2, 3, 4, 5]);
+        let value_offsets_buffer = Buffer::from_slice_ref([0_i32, 0, 0, 0, 0, 0]);
+
+        let value_array = UnionArray::try_new(
+            &[0, 1, 2, 3, 4, 5],
+            type_id_buffer,
+            Some(value_offsets_buffer),
+            vec![
+                (
+                    Field::new("string_value", string_value_array.data_type().clone(), true),
+                    Arc::new(string_value_array),
+                ),
+                (
+                    Field::new("bool_value", bool_value_array.data_type().clone(), true),
+                    Arc::new(bool_value_array),
+                ),
+                (
+                    Field::new("int64_value", int64_value_array.data_type().clone(), true),
+                    Arc::new(int64_value_array),
+                ),
+                (
+                    Field::new(
+                        "int32_bitmask",
+                        int32_bitmask_array.data_type().clone(),
+                        true,
+                    ),
+                    Arc::new(int32_bitmask_array),
+                ),
+                (
+                    Field::new("string_list", string_list_array.data_type().clone(), true),
+                    Arc::new(string_list_array),
+                ),
+                (
+                    Field::new(
+                        "int32_to_int32_list_map",
+                        int32_to_int32_list_map_array.data_type().clone(),
+                        true,
+                    ),
+                    Arc::new(int32_to_int32_list_map_array),
+                ),
+            ],
+        )?;
+
+        let batch = RecordBatch::try_new(
+            Arc::new(Schema::new(vec![
+                Field::new("info_name", name_array.data_type().clone(), false),
+                Field::new("info_value", value_array.data_type().clone(), true),
+            ])),
+            vec![Arc::new(name_array), Arc::new(value_array)],
+        )?;
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
     #[allow(refining_impl_trait)]

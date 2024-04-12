@@ -680,7 +680,7 @@ impl Connection for ManagedConnection {
 
     fn get_info(
         &self,
-        codes: Option<&[crate::options::InfoCode]>,
+        codes: Option<Vec<crate::options::InfoCode>>,
     ) -> Result<impl RecordBatchReader> {
         let mut error = ffi::FFI_AdbcError::default();
         let mut stream = FFI_ArrowArrayStream::empty();

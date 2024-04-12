@@ -2,7 +2,10 @@
 
 use std::os::raw::c_int;
 
-use crate::ffi::constants;
+use crate::{
+    error::{Error, Status},
+    ffi::constants,
+};
 
 /// Option value.
 ///
@@ -104,6 +107,40 @@ pub enum InfoCode {
     DriverAdbcVersion,
 }
 
+impl From<&InfoCode> for u32 {
+    fn from(value: &InfoCode) -> Self {
+        match value {
+            InfoCode::VendorName => constants::ADBC_INFO_VENDOR_NAME,
+            InfoCode::VendorVersion => constants::ADBC_INFO_VENDOR_VERSION,
+            InfoCode::VendorArrowVersion => constants::ADBC_INFO_VENDOR_ARROW_VERSION,
+            InfoCode::DriverName => constants::ADBC_INFO_DRIVER_NAME,
+            InfoCode::DriverVersion => constants::ADBC_INFO_DRIVER_VERSION,
+            InfoCode::DriverArrowVersion => constants::ADBC_INFO_DRIVER_ARROW_VERSION,
+            InfoCode::DriverAdbcVersion => constants::ADBC_INFO_DRIVER_ADBC_VERSION,
+        }
+    }
+}
+
+impl TryFrom<u32> for InfoCode {
+    type Error = Error;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            constants::ADBC_INFO_VENDOR_NAME => Ok(InfoCode::VendorName),
+            constants::ADBC_INFO_VENDOR_VERSION => Ok(InfoCode::VendorVersion),
+            constants::ADBC_INFO_VENDOR_ARROW_VERSION => Ok(InfoCode::VendorArrowVersion),
+            constants::ADBC_INFO_DRIVER_NAME => Ok(InfoCode::DriverName),
+            constants::ADBC_INFO_DRIVER_VERSION => Ok(InfoCode::DriverVersion),
+            constants::ADBC_INFO_DRIVER_ARROW_VERSION => Ok(InfoCode::DriverArrowVersion),
+            constants::ADBC_INFO_DRIVER_ADBC_VERSION => Ok(InfoCode::DriverAdbcVersion),
+            v => Err(Error::with_message_and_status(
+                &format!("Unknown info code: {}", v),
+                Status::InvalidArguments,
+            )),
+        }
+    }
+}
+
 /// Depth parameter for [get_objects][crate::Connection::get_objects] method.
 #[derive(Debug)]
 pub enum ObjectDepth {
@@ -117,20 +154,6 @@ pub enum ObjectDepth {
     Tables,
     /// Catalogs, schemas, tables, and columns. Identical to [ObjectDepth::All].
     Columns,
-}
-
-impl From<&InfoCode> for u32 {
-    fn from(value: &InfoCode) -> Self {
-        match value {
-            InfoCode::VendorName => constants::ADBC_INFO_VENDOR_NAME,
-            InfoCode::VendorVersion => constants::ADBC_INFO_VENDOR_VERSION,
-            InfoCode::VendorArrowVersion => constants::ADBC_INFO_VENDOR_ARROW_VERSION,
-            InfoCode::DriverName => constants::ADBC_INFO_DRIVER_NAME,
-            InfoCode::DriverVersion => constants::ADBC_INFO_DRIVER_VERSION,
-            InfoCode::DriverArrowVersion => constants::ADBC_INFO_DRIVER_ARROW_VERSION,
-            InfoCode::DriverAdbcVersion => constants::ADBC_INFO_DRIVER_ADBC_VERSION,
-        }
-    }
 }
 
 impl From<ObjectDepth> for c_int {
