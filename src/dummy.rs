@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use arrow::array::{
-    Array, BooleanArray, Int32Array, Int64Array, ListArray, MapArray, StringArray, StructArray,
-    UInt32Array, UnionArray,
+    Array, BooleanArray, Int16Array, Int32Array, Int64Array, ListArray, MapArray, StringArray,
+    StructArray, UInt32Array, UnionArray,
 };
 use arrow::buffer::{Buffer, OffsetBuffer, ScalarBuffer};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -255,11 +255,11 @@ impl Connection for DummyConnection {
     }
 
     fn cancel(&self) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
     fn commit(&self) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
     fn get_info(&self, _codes: Option<Vec<InfoCode>>) -> Result<impl RecordBatchReader> {
@@ -392,9 +392,18 @@ impl Connection for DummyConnection {
         Err(Error::with_message_and_status("", Status::NotImplemented))
     }
 
-    #[allow(refining_impl_trait)]
-    fn get_statistics_name(&self) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn get_statistic_names(&self) -> Result<impl RecordBatchReader> {
+        let name_array = StringArray::from(vec!["sum", "min", "max"]);
+        let key_array = Int16Array::from(vec![0, 1, 2]);
+        let batch = RecordBatch::try_new(
+            Arc::new(Schema::new(vec![
+                Field::new("statistic_name", DataType::Utf8, false),
+                Field::new("statistic_key", DataType::Int16, false),
+            ])),
+            vec![Arc::new(name_array), Arc::new(key_array)],
+        )?;
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
     fn get_table_schema(
@@ -442,7 +451,7 @@ impl Connection for DummyConnection {
     }
 
     fn rollback(&self) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 }
 

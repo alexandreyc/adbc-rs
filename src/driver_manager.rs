@@ -810,7 +810,7 @@ impl Connection for ManagedConnection {
         Ok(reader)
     }
 
-    fn get_statistics_name(&self) -> Result<impl RecordBatchReader> {
+    fn get_statistic_names(&self) -> Result<impl RecordBatchReader> {
         if let AdbcVersion::V100 = self.inner.version {
             return Err(Error::with_message_and_status(
                 ERR_STATISTICS_UNSUPPORTED,

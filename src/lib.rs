@@ -298,7 +298,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     ///
     /// # Since
     /// ADBC API revision 1.1.0
-    fn get_statistics_name(&self) -> Result<impl RecordBatchReader>;
+    fn get_statistic_names(&self) -> Result<impl RecordBatchReader + Send>;
 
     /// Get statistics about the data distribution of table(s).
     ///
@@ -344,7 +344,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     ///    values are for implementation-specific statistics.  For the definitions
     ///    of predefined statistic types, TODO (change this when statistics enum is added )
     ///     see \ref adbc-table-statistics. To get
-    ///    driver-specific statistic names, use [Connection::get_statistics_name].
+    ///    driver-specific statistic names, use [Connection::get_statistic_names].
     /// 3. If true, then the value is approximate or best-effort.
     ///
     /// VALUE_SCHEMA is a dense union with members:

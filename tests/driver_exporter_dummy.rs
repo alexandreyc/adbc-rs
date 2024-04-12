@@ -388,3 +388,32 @@ fn test_connection_get_info() {
     assert_eq!(exported_info.schema(), *schemas::GET_INFO_SCHEMA.deref());
     assert_eq!(exported_info, native_info);
 }
+
+#[test]
+fn test_connection_commit_rollback_cancel() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    exported_connection.commit().unwrap();
+    exported_connection.rollback().unwrap();
+    exported_connection.cancel().unwrap();
+
+    native_connection.commit().unwrap();
+    native_connection.rollback().unwrap();
+    native_connection.cancel().unwrap();
+}
+
+#[test]
+fn test_connection_get_statistic_names() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_names = common::concat_reader(exported_connection.get_statistic_names().unwrap());
+    let native_names = common::concat_reader(native_connection.get_statistic_names().unwrap());
+
+    assert_eq!(
+        exported_names.schema(),
+        *schemas::GET_STATISTIC_NAMES.deref()
+    );
+    assert_eq!(exported_names, native_names);
+}

@@ -202,11 +202,11 @@ fn test_connection_get_table_schema() {
 }
 
 #[test]
-fn test_connection_get_statistics_name() {
+fn test_connection_get_statistic_names() {
     let driver = get_driver();
     let database = get_database(&driver);
     let connection = database.new_connection().unwrap();
-    let names = common::concat_reader(connection.get_statistics_name().unwrap());
+    let names = common::concat_reader(connection.get_statistic_names().unwrap());
     assert_eq!(names.num_columns(), 2);
     assert_eq!(names.num_rows(), 0);
 }

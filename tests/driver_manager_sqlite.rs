@@ -153,11 +153,11 @@ fn test_connection_get_table_schema() {
 }
 
 #[test]
-fn test_connection_get_statistics_name() {
+fn test_connection_get_statistic_names() {
     let driver = get_driver();
     let database = get_database(&driver);
     let connection = database.new_connection().unwrap();
-    assert!(connection.get_statistics_name().is_err());
+    assert!(connection.get_statistic_names().is_err());
 }
 
 #[test]

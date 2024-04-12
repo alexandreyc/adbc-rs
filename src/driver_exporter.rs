@@ -41,7 +41,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         DatabaseNew: Some(database_new::<DriverType>),
         DatabaseSetOption: Some(database_set_option::<DriverType>),
         DatabaseRelease: Some(database_release::<DriverType>),
-        ConnectionCommit: None,
+        ConnectionCommit: Some(connection_commit::<DriverType>),
         ConnectionGetInfo: Some(connection_get_info::<DriverType>),
         ConnectionGetObjects: None,
         ConnectionGetTableSchema: Some(connection_get_table_schema::<DriverType>),
@@ -51,7 +51,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         ConnectionSetOption: Some(connection_set_option::<DriverType>),
         ConnectionReadPartition: None,
         ConnectionRelease: Some(connection_release::<DriverType>),
-        ConnectionRollback: None,
+        ConnectionRollback: Some(connection_rollback::<DriverType>),
         StatementBind: None,
         StatementBindStream: None,
         StatementExecuteQuery: None,
@@ -73,13 +73,13 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         DatabaseSetOptionBytes: Some(database_set_option_bytes::<DriverType>),
         DatabaseSetOptionDouble: Some(database_set_option_double::<DriverType>),
         DatabaseSetOptionInt: Some(database_set_option_int::<DriverType>),
-        ConnectionCancel: None,
+        ConnectionCancel: Some(connection_cancel::<DriverType>),
         ConnectionGetOption: Some(connection_get_option::<DriverType>),
         ConnectionGetOptionBytes: Some(connection_get_option_bytes::<DriverType>),
         ConnectionGetOptionDouble: Some(connection_get_option_double::<DriverType>),
         ConnectionGetOptionInt: Some(connection_get_option_int::<DriverType>),
         ConnectionGetStatistics: None,
-        ConnectionGetStatisticNames: None,
+        ConnectionGetStatisticNames: Some(connection_get_statistic_names::<DriverType>),
         ConnectionSetOptionBytes: Some(connection_set_option_bytes::<DriverType>),
         ConnectionSetOptionDouble: Some(connection_set_option_double::<DriverType>),
         ConnectionSetOptionInt: Some(connection_set_option_int::<DriverType>),
@@ -783,6 +783,52 @@ unsafe extern "C" fn connection_get_info<DriverType: Driver + Default + 'static>
     };
 
     let reader = check_err!(connection.get_info(info_codes), error);
+    let reader = Box::new(reader);
+    let reader = FFI_ArrowArrayStream::new(reader);
+    std::ptr::write_unaligned(stream, reader);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_commit<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+    check_err!(connection.commit(), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_rollback<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+    check_err!(connection.rollback(), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_cancel<DriverType: Driver + Default>(
+    connection: *mut FFI_AdbcConnection,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+    check_err!(connection.cancel(), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_statistic_names<DriverType: Driver + Default + 'static>(
+    connection: *mut FFI_AdbcConnection,
+    stream: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+
+    let reader = check_err!(connection.get_statistic_names(), error);
     let reader = Box::new(reader);
     let reader = FFI_ArrowArrayStream::new(reader);
     std::ptr::write_unaligned(stream, reader);

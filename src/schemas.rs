@@ -47,3 +47,11 @@ pub static GET_INFO_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
         ),
     ]))
 });
+
+/// Schema of data returned by [crate::Connection::get_statistic_names].
+pub static GET_STATISTIC_NAMES: Lazy<SchemaRef> = Lazy::new(|| {
+    Arc::new(Schema::new(vec![
+        Field::new("statistic_name", DataType::Utf8, false),
+        Field::new("statistic_key", DataType::Int16, false),
+    ]))
+});
