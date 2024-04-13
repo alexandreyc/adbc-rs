@@ -58,13 +58,13 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         StatementBindStream: Some(statement_bind_stream::<DriverType>),
         StatementExecuteQuery: Some(statement_execute_query::<DriverType>),
         StatementExecutePartitions: Some(statement_execute_partitions::<DriverType>),
-        StatementGetParameterSchema: None,
+        StatementGetParameterSchema: Some(statement_get_parameters_schema::<DriverType>),
         StatementNew: Some(statement_new::<DriverType>),
-        StatementPrepare: None,
+        StatementPrepare: Some(statement_prepare::<DriverType>),
         StatementRelease: Some(statement_release::<DriverType>),
         StatementSetOption: Some(statement_set_option::<DriverType>),
-        StatementSetSqlQuery: None,
-        StatementSetSubstraitPlan: None,
+        StatementSetSqlQuery: Some(statement_set_sql_query::<DriverType>),
+        StatementSetSubstraitPlan: Some(statement_set_substrait_plan::<DriverType>),
         ErrorGetDetailCount: None,
         ErrorGetDetail: None,
         ErrorFromArrayStream: None,
@@ -1171,6 +1171,63 @@ unsafe extern "C" fn statement_execute_partitions<DriverType: Driver + Default>(
 
     let partitions_value: FFI_AdbcPartitions = result.partitions.into();
     std::ptr::write_unaligned(partitions, partitions_value);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_prepare<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+    check_err!(statement.prepare(), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_set_sql_query<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    query: *const c_char,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    // TODO: check query is not null
+    let query = check_err!(CStr::from_ptr(query).to_str(), error);
+    check_err!(statement.set_sql_query(query), error);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_set_substrait_plan<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    plan: *const u8,
+    length: usize,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    // TODO: check plan is not null
+    let plan = std::slice::from_raw_parts(plan, length);
+    check_err!(statement.set_substrait_plan(plan), error);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_get_parameters_schema<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    schema: *mut FFI_ArrowSchema,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    // TODO: check schema is not null
+    let schema_value = check_err!(statement.get_parameters_schema(), error);
+    let schema_value: FFI_ArrowSchema = check_err!(schema_value.try_into(), error);
+    std::ptr::write_unaligned(schema, schema_value);
 
     ADBC_STATUS_OK
 }

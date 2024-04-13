@@ -511,3 +511,44 @@ fn test_statement_execute_partitions() {
     let native_result = native_statement.execute_partitions().unwrap();
     assert_eq!(exported_result, native_result);
 }
+
+#[test]
+fn test_statement_prepare() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    exported_statement.prepare().unwrap();
+    native_statement.prepare().unwrap();
+}
+
+#[test]
+fn test_statement_set_sql_query() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    exported_statement
+        .set_sql_query("select * from table")
+        .unwrap();
+    native_statement
+        .set_sql_query("select * from table")
+        .unwrap();
+}
+
+#[test]
+fn test_statement_set_substrait_plan() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    exported_statement.set_substrait_plan(b"SCAN").unwrap();
+    native_statement.set_substrait_plan(b"SCAN").unwrap();
+}
+
+#[test]
+fn test_statement_get_parameters_schema() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    let exported_schema = exported_statement.get_parameters_schema().unwrap();
+    let native_schema = native_statement.get_parameters_schema().unwrap();
+    assert_eq!(exported_schema, native_schema);
+}

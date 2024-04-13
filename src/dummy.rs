@@ -535,19 +535,19 @@ impl Statement for DummyStatement {
     }
 
     fn get_parameters_schema(&self) -> Result<Schema> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(get_table_schema())
     }
 
     fn prepare(&self) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
     fn set_sql_query(&self, _query: &str) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
     fn set_substrait_plan(&self, _plan: &[u8]) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 }
 
