@@ -3,8 +3,10 @@ use std::ffi::{CStr, CString};
 use std::hash::Hash;
 use std::os::raw::{c_char, c_void};
 
-use arrow::ffi::FFI_ArrowSchema;
-use arrow::ffi_stream::FFI_ArrowArrayStream;
+use arrow::array::StructArray;
+use arrow::datatypes::DataType;
+use arrow::ffi::{from_ffi, FFI_ArrowArray, FFI_ArrowSchema};
+use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
@@ -13,7 +15,7 @@ use crate::ffi::{
     FFI_AdbcStatusCode,
 };
 use crate::options::{InfoCode, OptionConnection, OptionDatabase, OptionValue};
-use crate::{check_err, Connection, Database, Driver, Optionable};
+use crate::{check_err, Connection, Database, Driver, Optionable, Statement};
 
 /// Invariant: options.is_none() XOR database.is_none()
 struct ExportedDatabase<DriverType: Driver + Default> {
@@ -52,8 +54,8 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         ConnectionReadPartition: Some(connection_read_partition::<DriverType>),
         ConnectionRelease: Some(connection_release::<DriverType>),
         ConnectionRollback: Some(connection_rollback::<DriverType>),
-        StatementBind: None,
-        StatementBindStream: None,
+        StatementBind: Some(statement_bind::<DriverType>),
+        StatementBindStream: Some(statement_bind_stream::<DriverType>),
         StatementExecuteQuery: None,
         StatementExecutePartitions: None,
         StatementGetParameterSchema: None,
@@ -1024,5 +1026,73 @@ unsafe extern "C" fn statement_get_option_bytes<DriverType: Driver + Default>(
     let optvalue = get_option_bytes(Some(&exported.statement), &mut None, key);
     let optvalue = check_err!(optvalue, error);
     check_err!(copy_bytes(&optvalue, value, length), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_bind<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    data: *mut FFI_ArrowArray,
+    schema: *mut FFI_ArrowSchema,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    if data.is_null() {
+        check_err!(
+            Err(Error::with_message_and_status(
+                "Passed null data pointer",
+                Status::InvalidArguments
+            )),
+            error
+        );
+    }
+
+    let schema = schema.as_ref().ok_or(Error::with_message_and_status(
+        "Passed null schema pointer",
+        Status::InvalidState,
+    ));
+    let schema = check_err!(schema, error);
+    let data = FFI_ArrowArray::from_raw(data);
+    let array = check_err!(from_ffi(data, schema), error);
+
+    if !matches!(array.data_type(), DataType::Struct(_)) {
+        check_err!(
+            Err(Error::with_message_and_status(
+                "You must pass a struct array to statement bind",
+                Status::InvalidArguments
+            )),
+            error
+        );
+    }
+
+    let array: StructArray = array.into();
+    check_err!(statement.bind(array.into()), error);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_bind_stream<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    stream: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    if stream.is_null() {
+        check_err!(
+            Err(Error::with_message_and_status(
+                "Passed null stream pointer",
+                Status::InvalidArguments
+            )),
+            error
+        );
+    }
+
+    let reader = check_err!(ArrowArrayStreamReader::from_raw(stream), error);
+    let reader = Box::new(reader);
+    check_err!(statement.bind_stream(reader), error);
+
     ADBC_STATUS_OK
 }

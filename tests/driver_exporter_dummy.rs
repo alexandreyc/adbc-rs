@@ -1,9 +1,10 @@
 use std::ops::Deref;
 
 use adbc_rs::driver_manager::{ManagedConnection, ManagedDatabase, ManagedStatement};
-use adbc_rs::dummy::{DummyConnection, DummyDatabase, DummyStatement};
+use adbc_rs::dummy::{DummyConnection, DummyDatabase, DummyStatement, SingleBatchReader};
 
 use adbc_rs::options::InfoCode;
+use adbc_rs::Statement;
 use adbc_rs::{
     driver_manager::DriverManager,
     dummy::DummyDriver,
@@ -41,6 +42,8 @@ fn get_native() -> (DummyDriver, DummyDatabase, DummyConnection, DummyStatement)
     let statement = connection.new_statement().unwrap();
     (driver, database, connection, statement)
 }
+
+// Database
 
 #[test]
 fn test_database_options() {
@@ -145,6 +148,8 @@ fn test_database_options() {
         .unwrap();
     assert_eq!(value, OPTION_BYTES_LONG);
 }
+
+// Connection
 
 #[test]
 fn test_connection_options() {
@@ -262,73 +267,6 @@ fn test_connection_options() {
 }
 
 #[test]
-fn test_statement_options() {
-    let (_, _, _, mut statement) = get_exported();
-
-    statement
-        .set_option(OptionStatement::Incremental, "true".into())
-        .unwrap();
-    let value = statement
-        .get_option_string(OptionStatement::Incremental)
-        .unwrap();
-    assert_eq!(value, "true");
-
-    statement
-        .set_option(OptionStatement::TargetTable, 42.into())
-        .unwrap();
-    let value = statement
-        .get_option_int(OptionStatement::TargetTable)
-        .unwrap();
-    assert_eq!(value, 42);
-
-    statement
-        .set_option(OptionStatement::MaxProgress, 3.14.into())
-        .unwrap();
-    let value = statement
-        .get_option_double(OptionStatement::MaxProgress)
-        .unwrap();
-    assert_eq!(value, 3.14);
-
-    statement
-        .set_option(OptionStatement::Other("bytes".into()), b"Hello".into())
-        .unwrap();
-    let value = statement
-        .get_option_bytes(OptionStatement::Other("bytes".into()))
-        .unwrap();
-    assert_eq!(value, b"Hello");
-
-    statement
-        .set_option(OptionStatement::IngestMode, IngestMode::CreateAppend.into())
-        .unwrap();
-    let value = statement
-        .get_option_string(OptionStatement::IngestMode)
-        .unwrap();
-    assert_eq!(value, Into::<String>::into(IngestMode::CreateAppend));
-
-    statement
-        .set_option(
-            OptionStatement::Other("bytes.long".into()),
-            OPTION_BYTES_LONG.into(),
-        )
-        .unwrap();
-    let value = statement
-        .get_option_bytes(OptionStatement::Other("bytes.long".into()))
-        .unwrap();
-    assert_eq!(value, OPTION_BYTES_LONG);
-
-    statement
-        .set_option(
-            OptionStatement::Other("string.long".into()),
-            OPTION_STRING_LONG.into(),
-        )
-        .unwrap();
-    let value = statement
-        .get_option_string(OptionStatement::Other("string.long".into()))
-        .unwrap();
-    assert_eq!(value, OPTION_STRING_LONG);
-}
-
-#[test]
 fn test_connection_get_table_types() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
@@ -435,4 +373,98 @@ fn test_connection_read_partition() {
             .into()
     );
     assert_eq!(exported_partition, native_partition);
+}
+
+// Statement
+
+#[test]
+fn test_statement_options() {
+    let (_, _, _, mut statement) = get_exported();
+
+    statement
+        .set_option(OptionStatement::Incremental, "true".into())
+        .unwrap();
+    let value = statement
+        .get_option_string(OptionStatement::Incremental)
+        .unwrap();
+    assert_eq!(value, "true");
+
+    statement
+        .set_option(OptionStatement::TargetTable, 42.into())
+        .unwrap();
+    let value = statement
+        .get_option_int(OptionStatement::TargetTable)
+        .unwrap();
+    assert_eq!(value, 42);
+
+    statement
+        .set_option(OptionStatement::MaxProgress, 3.14.into())
+        .unwrap();
+    let value = statement
+        .get_option_double(OptionStatement::MaxProgress)
+        .unwrap();
+    assert_eq!(value, 3.14);
+
+    statement
+        .set_option(OptionStatement::Other("bytes".into()), b"Hello".into())
+        .unwrap();
+    let value = statement
+        .get_option_bytes(OptionStatement::Other("bytes".into()))
+        .unwrap();
+    assert_eq!(value, b"Hello");
+
+    statement
+        .set_option(OptionStatement::IngestMode, IngestMode::CreateAppend.into())
+        .unwrap();
+    let value = statement
+        .get_option_string(OptionStatement::IngestMode)
+        .unwrap();
+    assert_eq!(value, Into::<String>::into(IngestMode::CreateAppend));
+
+    statement
+        .set_option(
+            OptionStatement::Other("bytes.long".into()),
+            OPTION_BYTES_LONG.into(),
+        )
+        .unwrap();
+    let value = statement
+        .get_option_bytes(OptionStatement::Other("bytes.long".into()))
+        .unwrap();
+    assert_eq!(value, OPTION_BYTES_LONG);
+
+    statement
+        .set_option(
+            OptionStatement::Other("string.long".into()),
+            OPTION_STRING_LONG.into(),
+        )
+        .unwrap();
+    let value = statement
+        .get_option_string(OptionStatement::Other("string.long".into()))
+        .unwrap();
+    assert_eq!(value, OPTION_STRING_LONG);
+}
+
+#[test]
+fn test_statement_bind() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    let batch = common::sample_batch();
+
+    exported_statement.bind(batch.clone()).unwrap();
+    native_statement.bind(batch).unwrap();
+}
+
+#[test]
+fn test_statement_bind_stream() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    let batch = common::sample_batch();
+    let reader = Box::new(SingleBatchReader::new(batch));
+    exported_statement.bind_stream(reader).unwrap();
+
+    let batch = common::sample_batch();
+    let reader = Box::new(SingleBatchReader::new(batch));
+    native_statement.bind_stream(reader).unwrap();
 }

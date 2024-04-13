@@ -494,11 +494,11 @@ impl Optionable for DummyStatement {
 
 impl Statement for DummyStatement {
     fn bind(&self, _batch: arrow::array::RecordBatch) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
     fn bind_stream(&self, _reader: Box<dyn arrow::array::RecordBatchReader + Send>) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
     fn cancel(&self) -> Result<()> {
