@@ -136,6 +136,32 @@ macro_rules! export_driver {
     };
 }
 
+/// Given a Result, either unwrap the value or handle the error in ADBC function.
+///
+/// This macro is for use when implementing ADBC methods that have an out
+/// parameter for [FFI_AdbcError] and return [FFI_AdbcStatusCode]. If the result is
+/// `Ok`, the expression resolves to the value. Otherwise, it will return early,
+/// setting the error and status code appropriately. In order for this to work,
+/// the error must be convertible to [crate::error::Error].
+#[macro_export]
+macro_rules! check_err {
+    ($res:expr, $err_out:expr) => {
+        match $res {
+            Ok(x) => x,
+            Err(error) => {
+                let error = $crate::error::Error::from(error);
+                let status: $crate::ffi::FFI_AdbcStatusCode =
+                    error.status.as_ref().expect("Missing error status").into();
+                if !$err_out.is_null() {
+                    let ffi_error = $crate::ffi::FFI_AdbcError::from(error);
+                    unsafe { std::ptr::write_unaligned($err_out, ffi_error) };
+                }
+                return status;
+            }
+        }
+    };
+}
+
 unsafe extern "C" fn release_ffi_driver(
     driver: *mut FFI_AdbcDriver,
     _error: *mut FFI_AdbcError,
