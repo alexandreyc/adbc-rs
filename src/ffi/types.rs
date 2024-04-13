@@ -1,6 +1,7 @@
 #![allow(non_camel_case_types, non_snake_case)]
 
 use std::ffi::{CStr, CString};
+use std::mem::ManuallyDrop;
 use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
@@ -80,11 +81,14 @@ pub struct FFI_AdbcPartitions {
     /// The partitions of the result set, where each entry (up to
     /// num_partitions entries) is an opaque identifier that can be
     /// passed to AdbcConnectionReadPartition.
-    partitions: *const *const u8,
+    // It's defined as a const const pointer in C but we need to release it so it
+    // probably needs to be mutable.
+    partitions: *mut *mut u8,
 
     /// The length of each corresponding entry in partitions.
-    // const size_t* partition_lengths;
-    partition_lengths: *const usize,
+    // It's defined as a const pointer in C but we need to release it so it
+    // probably needs to be mutable.
+    partition_lengths: *mut usize,
 
     /// Opaque implementation-defined state.
     /// This field is NULLPTR iff the connection is unintialized/freed.
@@ -93,7 +97,7 @@ pub struct FFI_AdbcPartitions {
     /// Release the contained partitions.
     /// Unlike other structures, this is an embedded callback to make it
     /// easier for the driver manager and driver to cooperate.
-    release: Option<unsafe extern "C" fn(*const Self)>,
+    release: Option<unsafe extern "C" fn(*mut Self)>,
 }
 
 #[repr(C)]
@@ -236,13 +240,93 @@ impl From<FFI_AdbcPartitions> for Partitions {
         let mut partitions = Vec::with_capacity(value.num_partitions);
         for p in 0..value.num_partitions {
             let partition = unsafe {
-                let ptr = (*value.partitions).add(p);
+                let ptr = *value.partitions.add(p);
                 let len = *value.partition_lengths.add(p);
                 std::slice::from_raw_parts(ptr, len)
             };
             partitions.push(partition.to_vec());
         }
         partitions
+    }
+}
+
+// Taken from `Vec::into_raw_parts` which is currently nightly-only.
+fn vec_into_raw_parts<T>(data: Vec<T>) -> (*mut T, usize, usize) {
+    let mut md = ManuallyDrop::new(data);
+    (md.as_mut_ptr(), md.len(), md.capacity())
+}
+
+// We need to store capacities to correctly release memory because the C API
+// only stores lengths and so capacties are lost in translation.
+struct PartitionsPrivateData {
+    partitions_capacity: usize,
+    partition_lengths_capacity: usize,
+    partition_capacities: Vec<usize>,
+}
+
+impl From<Partitions> for FFI_AdbcPartitions {
+    fn from(value: Partitions) -> Self {
+        let num_partitions = value.len();
+        let mut partition_lengths = Vec::with_capacity(num_partitions);
+        let mut partition_capacities = Vec::with_capacity(num_partitions);
+        let mut partition_ptrs = Vec::with_capacity(num_partitions);
+
+        for partition in value.into_iter() {
+            let (partition_ptr, partition_len, partition_cap) = vec_into_raw_parts(partition);
+            partition_lengths.push(partition_len);
+            partition_capacities.push(partition_cap);
+            partition_ptrs.push(partition_ptr);
+        }
+
+        let (partition_lengths_ptr, _, partition_lengths_cap) =
+            vec_into_raw_parts(partition_lengths);
+        let (partitions_ptr, _, partitions_cap) = vec_into_raw_parts(partition_ptrs);
+        let private_data = Box::new(PartitionsPrivateData {
+            partitions_capacity: partitions_cap,
+            partition_lengths_capacity: partition_lengths_cap,
+            partition_capacities,
+        });
+
+        FFI_AdbcPartitions {
+            num_partitions,
+            partition_lengths: partition_lengths_ptr,
+            partitions: partitions_ptr,
+            private_data: Box::into_raw(private_data) as *mut c_void,
+            release: Some(release_ffi_partitions),
+        }
+    }
+}
+
+unsafe extern "C" fn release_ffi_partitions(partitions: *mut FFI_AdbcPartitions) {
+    match partitions.as_mut() {
+        None => (),
+        Some(partitions) => {
+            let private_data = Box::from_raw(partitions.private_data as *mut PartitionsPrivateData);
+
+            let partition_lengths = Vec::from_raw_parts(
+                partitions.partition_lengths,
+                partitions.num_partitions,
+                private_data.partition_lengths_capacity,
+            );
+            drop(partition_lengths);
+
+            for p in 0..partitions.num_partitions {
+                let partition_ptr = *partitions.partitions.add(p);
+                let partition_len = *partitions.partition_lengths.add(p);
+                let partition_cap = private_data.partition_capacities[p];
+                let partition = Vec::from_raw_parts(partition_ptr, partition_len, partition_cap);
+                drop(partition);
+            }
+
+            let partitions_vec = Vec::from_raw_parts(
+                partitions.partitions,
+                partitions.num_partitions,
+                private_data.partitions_capacity,
+            );
+            drop(partitions_vec);
+
+            drop(private_data);
+        }
     }
 }
 
@@ -365,8 +449,8 @@ impl Default for FFI_AdbcPartitions {
     fn default() -> Self {
         Self {
             num_partitions: 0,
-            partitions: null(),
-            partition_lengths: null(),
+            partitions: null_mut(),
+            partition_lengths: null_mut(),
             private_data: null_mut(),
             release: None,
         }

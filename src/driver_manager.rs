@@ -94,7 +94,7 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 use crate::{
     error::Status,
     options::{self, AdbcVersion, OptionValue},
-    Error, Result,
+    Error, PartitionedResult, Result,
 };
 use crate::{ffi, ffi::types::driver_method, Optionable};
 use crate::{Connection, Database, Driver, Statement};
@@ -1052,7 +1052,7 @@ impl Statement for ManagedStatement {
         Ok(rows_affected)
     }
 
-    fn execute_partitions(&self) -> Result<crate::Partitions> {
+    fn execute_partitions(&self) -> Result<PartitionedResult> {
         let mut error = ffi::FFI_AdbcError::default();
         let driver = self.connection.database.driver.driver.lock().unwrap();
         let method = driver_method!(driver, StatementExecutePartitions);
@@ -1069,7 +1069,14 @@ impl Statement for ManagedStatement {
             )
         };
         check_status(status, error)?;
-        Ok(partitions.into())
+
+        let result = PartitionedResult {
+            partitions: partitions.into(),
+            schema: (&schema).try_into()?,
+            rows_affected,
+        };
+
+        Ok(result)
     }
 
     fn get_parameters_schema(&self) -> Result<arrow::datatypes::Schema> {

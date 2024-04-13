@@ -11,8 +11,8 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
 use crate::ffi::{
-    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcStatement,
-    FFI_AdbcStatusCode,
+    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcPartitions,
+    FFI_AdbcStatement, FFI_AdbcStatusCode,
 };
 use crate::options::{InfoCode, OptionConnection, OptionDatabase, OptionValue};
 use crate::{check_err, Connection, Database, Driver, Optionable, Statement};
@@ -56,8 +56,8 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         ConnectionRollback: Some(connection_rollback::<DriverType>),
         StatementBind: Some(statement_bind::<DriverType>),
         StatementBindStream: Some(statement_bind_stream::<DriverType>),
-        StatementExecuteQuery: None,
-        StatementExecutePartitions: None,
+        StatementExecuteQuery: Some(statement_execute_query::<DriverType>),
+        StatementExecutePartitions: Some(statement_execute_partitions::<DriverType>),
         StatementGetParameterSchema: None,
         StatementNew: Some(statement_new::<DriverType>),
         StatementPrepare: None,
@@ -85,8 +85,8 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         ConnectionSetOptionBytes: Some(connection_set_option_bytes::<DriverType>),
         ConnectionSetOptionDouble: Some(connection_set_option_double::<DriverType>),
         ConnectionSetOptionInt: Some(connection_set_option_int::<DriverType>),
-        StatementCancel: None,
-        StatementExecuteSchema: None,
+        StatementCancel: Some(statement_cancel::<DriverType>),
+        StatementExecuteSchema: Some(statement_execute_schema::<DriverType>),
         StatementGetOption: Some(statement_get_option::<DriverType>),
         StatementGetOptionBytes: Some(statement_get_option_bytes::<DriverType>),
         StatementGetOptionDouble: Some(statement_get_option_double::<DriverType>),
@@ -1093,6 +1093,84 @@ unsafe extern "C" fn statement_bind_stream<DriverType: Driver + Default>(
     let reader = check_err!(ArrowArrayStreamReader::from_raw(stream), error);
     let reader = Box::new(reader);
     check_err!(statement.bind_stream(reader), error);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_cancel<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+    check_err!(statement.cancel(), error);
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_execute_query<DriverType: Driver + Default + 'static>(
+    statement: *mut FFI_AdbcStatement,
+    out: *mut FFI_ArrowArrayStream,
+    rows_affected: *mut i64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    if !out.is_null() {
+        let reader = check_err!(statement.execute(), error);
+        let reader = Box::new(reader);
+        let reader = FFI_ArrowArrayStream::new(reader);
+        std::ptr::write_unaligned(out, reader);
+    } else {
+        let rows_affected_value = check_err!(statement.execute_update(), error);
+        if !rows_affected.is_null() {
+            std::ptr::write_unaligned(rows_affected, rows_affected_value);
+        }
+    }
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_execute_schema<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    schema: *mut FFI_ArrowSchema,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    // TODO: check schema is non-null
+
+    let schema_value = check_err!(statement.execute_schema(), error);
+    let schema_value: FFI_ArrowSchema = check_err!(schema_value.try_into(), error);
+    std::ptr::write_unaligned(schema, schema_value);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn statement_execute_partitions<DriverType: Driver + Default>(
+    statement: *mut FFI_AdbcStatement,
+    schema: *mut FFI_ArrowSchema,
+    partitions: *mut FFI_AdbcPartitions,
+    rows_affected: *mut i64,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    let exported = check_err!(statement_private_data::<DriverType>(statement), error);
+    let statement = &exported.statement;
+
+    // TODO: check schema, partitions are not null
+
+    let result = check_err!(statement.execute_partitions(), error);
+
+    if !rows_affected.is_null() {
+        std::ptr::write_unaligned(rows_affected, result.rows_affected);
+    }
+
+    let schema_value: FFI_ArrowSchema = check_err!((&result.schema).try_into(), error);
+    std::ptr::write_unaligned(schema, schema_value);
+
+    let partitions_value: FFI_AdbcPartitions = result.partitions.into();
+    std::ptr::write_unaligned(partitions, partitions_value);
 
     ADBC_STATUS_OK
 }

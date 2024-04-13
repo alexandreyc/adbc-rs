@@ -468,3 +468,46 @@ fn test_statement_bind_stream() {
     let reader = Box::new(SingleBatchReader::new(batch));
     native_statement.bind_stream(reader).unwrap();
 }
+
+#[test]
+fn test_statement_cancel() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    exported_statement.cancel().unwrap();
+    native_statement.cancel().unwrap();
+}
+
+#[test]
+fn test_statement_execute_query() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    let exported_data = common::concat_reader(exported_statement.execute().unwrap());
+    let native_data = common::concat_reader(native_statement.execute().unwrap());
+    assert_eq!(exported_data, native_data);
+
+    let exported_data = exported_statement.execute_update().unwrap();
+    let native_data = native_statement.execute_update().unwrap();
+    assert_eq!(exported_data, native_data);
+}
+
+#[test]
+fn test_statement_execute_schema() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    let exported_schema = exported_statement.execute_schema().unwrap();
+    let native_schema = native_statement.execute_schema().unwrap();
+    assert_eq!(exported_schema, native_schema);
+}
+
+#[test]
+fn test_statement_execute_partitions() {
+    let (_, _, _, exported_statement) = get_exported();
+    let (_, _, _, native_statement) = get_native();
+
+    let exported_result = exported_statement.execute_partitions().unwrap();
+    let native_result = native_statement.execute_partitions().unwrap();
+    assert_eq!(exported_result, native_result);
+}

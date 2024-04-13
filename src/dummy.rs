@@ -16,7 +16,7 @@ use crate::{
     options::{
         InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement, OptionValue,
     },
-    Connection, Database, Driver, Optionable, Statement,
+    Connection, Database, Driver, Optionable, PartitionedResult, Statement,
 };
 
 #[derive(Debug)]
@@ -47,6 +47,26 @@ impl RecordBatchReader for SingleBatchReader {
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
+}
+
+fn get_table_schema() -> Schema {
+    Schema::new(vec![
+        Field::new("a", DataType::UInt32, true),
+        Field::new("b", DataType::Float64, false),
+        Field::new("c", DataType::Utf8, true),
+    ])
+}
+
+fn get_table_data() -> RecordBatch {
+    RecordBatch::try_new(
+        Arc::new(get_table_schema()),
+        vec![
+            Arc::new(UInt32Array::from(vec![1, 2, 3])),
+            Arc::new(Float64Array::from(vec![1.5, 2.5, 3.5])),
+            Arc::new(StringArray::from(vec!["A", "B", "C"])),
+        ],
+    )
+    .unwrap()
 }
 
 fn set_option<T>(options: &mut HashMap<T, OptionValue>, key: T, value: OptionValue) -> Result<()>
@@ -416,12 +436,7 @@ impl Connection for DummyConnection {
         let db_schema = db_schema.unwrap_or("default");
 
         if catalog == "default" && db_schema == "default" && table_name == "default" {
-            let schema = Schema::new(vec![
-                Field::new("a", DataType::UInt32, true),
-                Field::new("b", DataType::Float64, false),
-                Field::new("c", DataType::Utf8, true),
-            ]);
-            Ok(schema)
+            Ok(get_table_schema())
         } else {
             Err(Error::with_message_and_status(
                 &format!(
@@ -446,15 +461,7 @@ impl Connection for DummyConnection {
     }
 
     fn read_partition(&self, _partition: &[u8]) -> Result<impl RecordBatchReader> {
-        let schema = Arc::new(self.get_table_schema(None, None, "default")?);
-        let batch = RecordBatch::try_new(
-            schema,
-            vec![
-                Arc::new(UInt32Array::from(vec![1, 2, 3])),
-                Arc::new(Float64Array::from(vec![1.5, 2.5, 3.5])),
-                Arc::new(StringArray::from(vec!["A", "B", "C"])),
-            ],
-        )?;
+        let batch = get_table_data();
         let reader = SingleBatchReader::new(batch);
         Ok(reader)
     }
@@ -493,36 +500,41 @@ impl Optionable for DummyStatement {
 }
 
 impl Statement for DummyStatement {
-    fn bind(&self, _batch: arrow::array::RecordBatch) -> Result<()> {
+    fn bind(&self, _batch: RecordBatch) -> Result<()> {
         Ok(())
     }
 
-    fn bind_stream(&self, _reader: Box<dyn arrow::array::RecordBatchReader + Send>) -> Result<()> {
+    fn bind_stream(&self, _reader: Box<dyn RecordBatchReader + Send>) -> Result<()> {
         Ok(())
     }
 
     fn cancel(&self) -> Result<()> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(())
     }
 
-    #[allow(refining_impl_trait)]
-    fn execute(&self) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn execute(&self) -> Result<impl RecordBatchReader> {
+        let batch = get_table_data();
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
-    fn execute_partitions(&self) -> Result<crate::Partitions> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn execute_partitions(&self) -> Result<PartitionedResult> {
+        Ok(PartitionedResult {
+            partitions: vec![b"AAA".into(), b"ZZZZZ".into()],
+            schema: get_table_schema(),
+            rows_affected: 0,
+        })
     }
 
-    fn execute_schema(&self) -> Result<arrow::datatypes::Schema> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    fn execute_schema(&self) -> Result<Schema> {
+        Ok(get_table_schema())
     }
 
     fn execute_update(&self) -> Result<i64> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+        Ok(0)
     }
 
-    fn get_parameters_schema(&self) -> Result<arrow::datatypes::Schema> {
+    fn get_parameters_schema(&self) -> Result<Schema> {
         Err(Error::with_message_and_status("", Status::NotImplemented))
     }
 

@@ -415,7 +415,7 @@ pub trait Statement: Optionable<Option = OptionStatement> {
     /// Execute a statement and get the results.
     ///
     /// This invalidates any prior result sets.
-    fn execute(&self) -> Result<impl RecordBatchReader>;
+    fn execute(&self) -> Result<impl RecordBatchReader + Send>;
 
     /// Execute a statement that doesn’t have a result set and get the number
     /// of affected rows.
@@ -441,7 +441,7 @@ pub trait Statement: Optionable<Option = OptionStatement> {
     fn execute_schema(&self) -> Result<Schema>;
 
     /// Execute a statement and get the results as a partitioned result set.
-    fn execute_partitions(&self) -> Result<Partitions>;
+    fn execute_partitions(&self) -> Result<PartitionedResult>;
 
     /// Get the schema for bound parameters.
     ///
@@ -487,8 +487,17 @@ pub trait Statement: Optionable<Option = OptionStatement> {
     fn cancel(&self) -> Result<()>;
 }
 
-/// A partitioned result set.
-///
 /// Each data partition is described by an opaque byte array and can be
 /// retrieved with [Connection::read_partition].
 pub type Partitions = Vec<Vec<u8>>;
+
+/// A partitioned result set as returned by [Statement::execute_partitions].
+#[derive(Debug, PartialEq, Eq)]
+pub struct PartitionedResult {
+    /// The result partitions.
+    pub partitions: Partitions,
+    /// The schema of the result set.
+    pub schema: Schema,
+    /// The number of rows affected if known, else -1.
+    pub rows_affected: i64,
+}
