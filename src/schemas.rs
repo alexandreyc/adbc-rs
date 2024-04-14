@@ -56,7 +56,7 @@ pub static GET_STATISTIC_NAMES_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     ]))
 });
 
-pub(crate) static VALUE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub(crate) static STATISTIC_VALUE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Union(
         UnionFields::new(
             vec![0, 1, 2, 3],
@@ -77,14 +77,14 @@ pub(crate) static STATISTICS_SCHEMA: Lazy<DataType> = Lazy::new(|| {
             Field::new("table_name", DataType::Utf8, false),
             Field::new("column_name", DataType::Utf8, true),
             Field::new("statistic_key", DataType::Int16, false),
-            Field::new("statistic_value", VALUE_SCHEMA.clone(), false),
+            Field::new("statistic_value", STATISTIC_VALUE_SCHEMA.clone(), false),
             Field::new("statistic_is_approximate", DataType::Boolean, false),
         ]
         .into(),
     )
 });
 
-pub(crate) static DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub(crate) static STATISTICS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("db_schema_name", DataType::Utf8, true),
@@ -104,15 +104,14 @@ pub static GET_STATISTICS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
         Field::new("catalog_name", DataType::Utf8, true),
         Field::new(
             "catalog_db_schemas",
-            DataType::new_list(DB_SCHEMA_SCHEMA.clone(), true),
+            DataType::new_list(STATISTICS_DB_SCHEMA_SCHEMA.clone(), true),
             false,
         ),
     ]))
 });
 
-/// Schema of data returned by [crate::Connection::get_objects].
-pub static GET_OBJECTS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
-    let usage_schema = DataType::Struct(
+pub(crate) static USAGE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("fk_catalog", DataType::Utf8, true),
             Field::new("fk_db_schema", DataType::Utf8, true),
@@ -120,9 +119,11 @@ pub static GET_OBJECTS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
             Field::new("fk_column_name", DataType::Utf8, false),
         ]
         .into(),
-    );
+    )
+});
 
-    let constraint_schema = DataType::Struct(
+pub(crate) static CONSTRAINT_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("constraint_name", DataType::Utf8, true),
             Field::new("constraint_type", DataType::Utf8, false),
@@ -133,14 +134,16 @@ pub static GET_OBJECTS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
             ),
             Field::new(
                 "constraint_column_usage",
-                DataType::new_list(usage_schema, true),
+                DataType::new_list(USAGE_SCHEMA.clone(), true),
                 true,
             ),
         ]
         .into(),
-    );
+    )
+});
 
-    let column_schema = DataType::Struct(
+pub(crate) static COLUMN_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("column_name", DataType::Utf8, false),
             Field::new("ordinal_position", DataType::Int32, true),
@@ -163,43 +166,50 @@ pub static GET_OBJECTS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
             Field::new("xdbc_is_generatedcolumn", DataType::Boolean, true),
         ]
         .into(),
-    );
+    )
+});
 
-    let table_schema = DataType::Struct(
+pub(crate) static TABLE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("table_name", DataType::Utf8, false),
             Field::new("table_type", DataType::Utf8, false),
             Field::new(
                 "table_columns",
-                DataType::new_list(column_schema, true),
+                DataType::new_list(COLUMN_SCHEMA.clone(), true),
                 true,
             ),
             Field::new(
                 "table_constraints",
-                DataType::new_list(constraint_schema, true),
+                DataType::new_list(CONSTRAINT_SCHEMA.clone(), true),
                 true,
             ),
         ]
         .into(),
-    );
+    )
+});
 
-    let db_schema_schema = DataType::Struct(
+pub(crate) static OBJECTS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("db_schema_name", DataType::Utf8, true),
             Field::new(
                 "db_schema_tables",
-                DataType::new_list(table_schema, true),
+                DataType::new_list(TABLE_SCHEMA.clone(), true),
                 true,
             ),
         ]
         .into(),
-    );
+    )
+});
 
+/// Schema of data returned by [crate::Connection::get_objects].
+pub static GET_OBJECTS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![
         Field::new("catalog_name", DataType::Utf8, true),
         Field::new(
             "catalog_db_schemas",
-            DataType::new_list(db_schema_schema, true),
+            DataType::new_list(OBJECTS_DB_SCHEMA_SCHEMA.clone(), true),
             true,
         ),
     ]))

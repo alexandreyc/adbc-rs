@@ -256,9 +256,9 @@ pub trait Connection: Optionable<Option = OptionConnection> {
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: Option<&str>,
-        table_type: Option<&[&str]>,
+        table_type: Option<Vec<&str>>,
         column_name: Option<&str>,
-    ) -> Result<impl RecordBatchReader>;
+    ) -> Result<impl RecordBatchReader + Send>;
 
     /// Get the Arrow schema of a table.
     ///

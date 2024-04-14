@@ -168,6 +168,23 @@ impl From<ObjectDepth> for c_int {
     }
 }
 
+impl TryFrom<c_int> for ObjectDepth {
+    type Error = Error;
+
+    fn try_from(value: c_int) -> Result<Self, Error> {
+        match value {
+            constants::ADBC_OBJECT_DEPTH_ALL => Ok(ObjectDepth::All),
+            constants::ADBC_OBJECT_DEPTH_CATALOGS => Ok(ObjectDepth::Catalogs),
+            constants::ADBC_OBJECT_DEPTH_DB_SCHEMAS => Ok(ObjectDepth::Schemas),
+            constants::ADBC_OBJECT_DEPTH_TABLES => Ok(ObjectDepth::Tables),
+            v => Err(Error::with_message_and_status(
+                &format!("Unknow object depth: {}", v),
+                Status::InvalidArguments,
+            )),
+        }
+    }
+}
+
 /// Database option key.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum OptionDatabase {

@@ -712,7 +712,7 @@ impl Connection for ManagedConnection {
         catalog: Option<&str>,
         db_schema: Option<&str>,
         table_name: Option<&str>,
-        table_type: Option<&[&str]>,
+        table_type: Option<Vec<&str>>,
         column_name: Option<&str>,
     ) -> Result<impl RecordBatchReader> {
         let catalog = catalog.map(CString::new).transpose()?;

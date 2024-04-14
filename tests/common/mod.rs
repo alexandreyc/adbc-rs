@@ -172,7 +172,7 @@ pub fn test_connection_get_objects(
             None,
             None,
             None,
-            Some(&["table", "view"]),
+            Some(vec!["table", "view"]),
             None,
         )
         .unwrap();
@@ -187,7 +187,7 @@ pub fn test_connection_get_objects(
                 Some("my_catalog"),
                 Some("my_schema"),
                 Some("my_table"),
-                Some(&["table", "view"]),
+                Some(vec!["table", "view"]),
                 Some("my_column"),
             )
             .unwrap(),

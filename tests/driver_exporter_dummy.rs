@@ -3,7 +3,7 @@ use std::ops::Deref;
 use adbc_rs::driver_manager::{ManagedConnection, ManagedDatabase, ManagedStatement};
 use adbc_rs::dummy::{DummyConnection, DummyDatabase, DummyStatement, SingleBatchReader};
 
-use adbc_rs::options::InfoCode;
+use adbc_rs::options::{InfoCode, ObjectDepth};
 use adbc_rs::Statement;
 use adbc_rs::{
     driver_manager::DriverManager,
@@ -395,6 +395,36 @@ fn test_connection_get_statistics() {
     assert_eq!(
         exported_statistics.schema(),
         schemas::GET_STATISTICS_SCHEMA.clone(),
+    );
+}
+
+#[test]
+fn test_connection_get_objects() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_objects = common::concat_reader(
+        exported_connection
+            .get_objects(
+                ObjectDepth::All,
+                None,
+                None,
+                None,
+                Some(vec!["table", "view"]),
+                None,
+            )
+            .unwrap(),
+    );
+    let native_objects = common::concat_reader(
+        native_connection
+            .get_objects(ObjectDepth::All, None, None, None, None, None)
+            .unwrap(),
+    );
+
+    assert_eq!(exported_objects, native_objects);
+    assert_eq!(
+        exported_objects.schema(),
+        schemas::GET_OBJECTS_SCHEMA.clone(),
     );
 }
 

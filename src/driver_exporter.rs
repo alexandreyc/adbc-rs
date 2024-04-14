@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::hash::Hash;
-use std::os::raw::{c_char, c_void};
+use std::os::raw::{c_char, c_int, c_void};
 
 use arrow::array::StructArray;
 use arrow::datatypes::DataType;
@@ -14,7 +14,7 @@ use crate::ffi::{
     FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcPartitions,
     FFI_AdbcStatement, FFI_AdbcStatusCode,
 };
-use crate::options::{InfoCode, OptionConnection, OptionDatabase, OptionValue};
+use crate::options::{InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionValue};
 use crate::{check_err, Connection, Database, Driver, Optionable, Statement};
 
 // Invariant: options.is_none() XOR database.is_none()
@@ -45,7 +45,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         DatabaseRelease: Some(database_release::<DriverType>),
         ConnectionCommit: Some(connection_commit::<DriverType>),
         ConnectionGetInfo: Some(connection_get_info::<DriverType>),
-        ConnectionGetObjects: None,
+        ConnectionGetObjects: Some(connection_get_objects::<DriverType>),
         ConnectionGetTableSchema: Some(connection_get_table_schema::<DriverType>),
         ConnectionGetTableTypes: Some(connection_get_table_types::<DriverType>),
         ConnectionInit: Some(connection_init::<DriverType>),
@@ -1024,6 +1024,78 @@ unsafe extern "C" fn connection_get_statistics<DriverType: Driver + Default + 's
     let connection = exported.connection.as_ref().expect("Broken invariant");
 
     let reader = connection.get_statistics(catalog, db_schema, table_name, approximate);
+    let reader = check_err!(reader, error);
+    let reader = Box::new(reader);
+    let reader = FFI_ArrowArrayStream::new(reader);
+    std::ptr::write_unaligned(out, reader);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_objects<DriverType: Driver + Default + 'static>(
+    connection: *mut FFI_AdbcConnection,
+    depth: c_int,
+    catalog: *const c_char,
+    db_schema: *const c_char,
+    table_name: *const c_char,
+    table_type: *const *const c_char,
+    column_name: *const c_char,
+    out: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    check_not_null!(connection, error);
+    check_not_null!(out, error);
+
+    let depth = check_err!(ObjectDepth::try_from(depth), error);
+
+    let catalog = catalog
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let catalog = check_err!(catalog, error);
+
+    let db_schema = db_schema
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let db_schema = check_err!(db_schema, error);
+
+    let table_name = table_name
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let table_name = check_err!(table_name, error);
+
+    let column_name = column_name
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let column_name = check_err!(column_name, error);
+
+    let table_type = if !table_type.is_null() {
+        let mut strs = Vec::new();
+        let mut ptr = table_type;
+        while !(*ptr).is_null() {
+            let str = check_err!(CStr::from_ptr(*ptr).to_str(), error);
+            strs.push(str);
+            ptr = ptr.add(1);
+        }
+        Some(strs)
+    } else {
+        None
+    };
+
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+
+    let reader = connection.get_objects(
+        depth,
+        catalog,
+        db_schema,
+        table_name,
+        table_type,
+        column_name,
+    );
     let reader = check_err!(reader, error);
     let reader = Box::new(reader);
     let reader = FFI_ArrowArrayStream::new(reader);

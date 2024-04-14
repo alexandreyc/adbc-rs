@@ -8,7 +8,6 @@ use arrow::array::{
 use arrow::buffer::{Buffer, OffsetBuffer, ScalarBuffer};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
-use arrow::ffi_stream::ArrowArrayStreamReader;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use crate::ffi;
@@ -385,17 +384,242 @@ impl Connection for DummyConnection {
         Ok(reader)
     }
 
-    #[allow(refining_impl_trait)]
     fn get_objects(
         &self,
         _depth: ObjectDepth,
         _catalog: Option<&str>,
         _db_schema: Option<&str>,
         _table_name: Option<&str>,
-        _table_type: Option<&[&str]>,
+        _table_type: Option<Vec<&str>>,
         _column_name: Option<&str>,
-    ) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    ) -> Result<impl RecordBatchReader> {
+        let constraint_column_usage_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("fk_catalog", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["my_catalog"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("fk_db_schema", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["my_db_schema"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("fk_table", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["my_table"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("fk_column_name", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["my_column"])) as ArrayRef,
+            ),
+        ]);
+
+        let constraint_column_usage_array = ListArray::new(
+            Arc::new(Field::new("item", schemas::USAGE_SCHEMA.clone(), true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(constraint_column_usage_array_inner),
+            None,
+        );
+
+        let constraint_column_names_array = ListArray::new(
+            Arc::new(Field::new("item", DataType::Utf8, true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(StringArray::from(vec!["my_other_column"])),
+            None,
+        );
+
+        let table_constraints_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("constraint_name", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["my_constraint"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("constraint_type", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["FOREIGN KEY"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "constraint_column_names",
+                    DataType::new_list(DataType::Utf8, true),
+                    false,
+                )),
+                Arc::new(constraint_column_names_array) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "constraint_column_usage",
+                    DataType::new_list(schemas::USAGE_SCHEMA.clone(), true),
+                    true,
+                )),
+                Arc::new(constraint_column_usage_array) as ArrayRef,
+            ),
+        ]);
+
+        let table_columns_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("column_name", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["my_column"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("ordinal_position", DataType::Int32, true)),
+                Arc::new(Int32Array::from(vec![0])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("remarks", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["Nice column!"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_data_type", DataType::Int16, true)),
+                Arc::new(Int16Array::from(vec![0])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_type_name", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["my_type"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_column_size", DataType::Int32, true)),
+                Arc::new(Int32Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_decimal_digits", DataType::Int16, true)),
+                Arc::new(Int16Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_num_prec_radix", DataType::Int16, true)),
+                Arc::new(Int16Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_nullable", DataType::Int16, true)),
+                Arc::new(Int16Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_column_def", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["column_def"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_sql_data_type", DataType::Int16, true)),
+                Arc::new(Int16Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_datetime_sub", DataType::Int16, true)),
+                Arc::new(Int16Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_char_octet_length", DataType::Int32, true)),
+                Arc::new(Int32Array::from(vec![42])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_is_nullable", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["YES"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_scope_catalog", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["MyCatalog"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_scope_schema", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["MySchema"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_scope_table", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["MyTable"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("xdbc_is_autoincrement", DataType::Boolean, true)),
+                Arc::new(BooleanArray::from(vec![true])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "xdbc_is_generatedcolumn",
+                    DataType::Boolean,
+                    true,
+                )),
+                Arc::new(BooleanArray::from(vec![true])) as ArrayRef,
+            ),
+        ]);
+
+        let table_columns_array = ListArray::new(
+            Arc::new(Field::new("item", schemas::COLUMN_SCHEMA.clone(), true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(table_columns_array_inner),
+            None,
+        );
+
+        let table_constraints_array = ListArray::new(
+            Arc::new(Field::new("item", schemas::CONSTRAINT_SCHEMA.clone(), true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(table_constraints_array_inner),
+            None,
+        );
+
+        let db_schema_tables_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("table_name", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["default"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("table_type", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["table"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "table_columns",
+                    DataType::new_list(schemas::COLUMN_SCHEMA.clone(), true),
+                    true,
+                )),
+                Arc::new(table_columns_array) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "table_constraints",
+                    DataType::new_list(schemas::CONSTRAINT_SCHEMA.clone(), true),
+                    true,
+                )),
+                Arc::new(table_constraints_array) as ArrayRef,
+            ),
+        ]);
+
+        let db_schema_tables_array = ListArray::new(
+            Arc::new(Field::new("item", schemas::TABLE_SCHEMA.clone(), true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(db_schema_tables_array_inner),
+            None,
+        );
+
+        let catalog_db_schemas_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("db_schema_name", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["default"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new_list(
+                    "db_schema_tables",
+                    Arc::new(Field::new("item", schemas::TABLE_SCHEMA.clone(), true)),
+                    true,
+                )),
+                Arc::new(db_schema_tables_array) as ArrayRef,
+            ),
+        ]);
+
+        let catalog_name_array = StringArray::from(vec!["default"]);
+        let catalog_db_schemas_array = ListArray::new(
+            Arc::new(Field::new(
+                "item",
+                schemas::OBJECTS_DB_SCHEMA_SCHEMA.clone(),
+                true,
+            )),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(catalog_db_schemas_array_inner),
+            None,
+        );
+
+        let batch = RecordBatch::try_new(
+            schemas::GET_OBJECTS_SCHEMA.clone(),
+            vec![
+                Arc::new(catalog_name_array),
+                Arc::new(catalog_db_schemas_array),
+            ],
+        )?;
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
     fn get_statistics(
@@ -453,7 +677,7 @@ impl Connection for DummyConnection {
             (
                 Arc::new(Field::new(
                     "statistic_value",
-                    schemas::VALUE_SCHEMA.clone(),
+                    schemas::STATISTIC_VALUE_SCHEMA.clone(),
                     false,
                 )),
                 Arc::new(statistic_value_array) as ArrayRef,
@@ -492,7 +716,11 @@ impl Connection for DummyConnection {
 
         let catalog_name_array = StringArray::from(vec!["default"]);
         let catalog_db_schemas_array = ListArray::new(
-            Arc::new(Field::new("item", schemas::DB_SCHEMA_SCHEMA.clone(), true)),
+            Arc::new(Field::new(
+                "item",
+                schemas::STATISTICS_DB_SCHEMA_SCHEMA.clone(),
+                true,
+            )),
             OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
             Arc::new(catalog_db_schemas_array_inner),
             None,
