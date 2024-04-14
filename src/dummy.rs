@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
@@ -16,7 +17,7 @@ use crate::{
     options::{
         InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement, OptionValue,
     },
-    Connection, Database, Driver, Optionable, PartitionedResult, Statement,
+    schemas, Connection, Database, Driver, Optionable, PartitionedResult, Statement,
 };
 
 #[derive(Debug)]
@@ -378,10 +379,7 @@ impl Connection for DummyConnection {
         )?;
 
         let batch = RecordBatch::try_new(
-            Arc::new(Schema::new(vec![
-                Field::new("info_name", name_array.data_type().clone(), false),
-                Field::new("info_value", value_array.data_type().clone(), true),
-            ])),
+            schemas::GET_INFO_SCHEMA.clone(),
             vec![Arc::new(name_array), Arc::new(value_array)],
         )?;
         let reader = SingleBatchReader::new(batch);
@@ -416,10 +414,7 @@ impl Connection for DummyConnection {
         let name_array = StringArray::from(vec!["sum", "min", "max"]);
         let key_array = Int16Array::from(vec![0, 1, 2]);
         let batch = RecordBatch::try_new(
-            Arc::new(Schema::new(vec![
-                Field::new("statistic_name", DataType::Utf8, false),
-                Field::new("statistic_key", DataType::Int16, false),
-            ])),
+            schemas::GET_STATISTIC_NAMES_SCHEMA.clone(),
             vec![Arc::new(name_array), Arc::new(key_array)],
         )?;
         let reader = SingleBatchReader::new(batch);
@@ -449,13 +444,8 @@ impl Connection for DummyConnection {
     }
 
     fn get_table_types(&self) -> Result<impl RecordBatchReader> {
-        let schema = Arc::new(Schema::new(vec![Field::new(
-            "table_type",
-            DataType::Utf8,
-            false,
-        )]));
         let array = Arc::new(StringArray::from(vec!["table", "view"]));
-        let batch = RecordBatch::try_new(schema, vec![array])?;
+        let batch = RecordBatch::try_new(schemas::GET_TABLE_TYPES_SCHEMA.clone(), vec![array])?;
         let reader = SingleBatchReader::new(batch);
         Ok(reader)
     }
