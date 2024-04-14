@@ -122,7 +122,7 @@ pub fn test_connection_read_partition(connection: &ManagedConnection) {
 pub fn test_connection_get_table_types(connection: &ManagedConnection, actual: &[&str]) {
     let got = concat_reader(connection.get_table_types().unwrap());
     assert_eq!(got.num_columns(), 1);
-    assert_eq!(got.schema(), *schemas::GET_TABLE_TYPES.deref());
+    assert_eq!(got.schema(), *schemas::GET_TABLE_TYPES_SCHEMA.deref());
 
     let got: Vec<Option<&str>> = as_string_array(got.column(0)).iter().collect();
     assert!(got.iter().all(|x| x.is_some()));

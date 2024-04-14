@@ -277,7 +277,7 @@ fn test_connection_get_table_types() {
 
     assert_eq!(
         exported_table_types.schema(),
-        *schemas::GET_TABLE_TYPES.deref()
+        *schemas::GET_TABLE_TYPES_SCHEMA.deref()
     );
     assert_eq!(exported_table_types, native_table_types);
 }
@@ -351,7 +351,7 @@ fn test_connection_get_statistic_names() {
 
     assert_eq!(
         exported_names.schema(),
-        *schemas::GET_STATISTIC_NAMES.deref()
+        *schemas::GET_STATISTIC_NAMES_SCHEMA.deref()
     );
     assert_eq!(exported_names, native_names);
 }
