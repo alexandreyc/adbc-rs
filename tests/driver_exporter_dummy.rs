@@ -375,6 +375,29 @@ fn test_connection_read_partition() {
     assert_eq!(exported_partition, native_partition);
 }
 
+#[test]
+fn test_connection_get_statistics() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_statistics = common::concat_reader(
+        exported_connection
+            .get_statistics(None, None, None, false)
+            .unwrap(),
+    );
+    let native_statistics = common::concat_reader(
+        native_connection
+            .get_statistics(None, None, None, false)
+            .unwrap(),
+    );
+
+    assert_eq!(exported_statistics, native_statistics);
+    assert_eq!(
+        exported_statistics.schema(),
+        schemas::GET_STATISTICS_SCHEMA.clone(),
+    );
+}
+
 // Statement
 
 #[test]

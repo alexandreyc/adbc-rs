@@ -1,10 +1,9 @@
-use std::ops::Deref;
 use std::sync::Arc;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use arrow::array::{
-    Array, BooleanArray, Float64Array, Int16Array, Int32Array, Int64Array, ListArray, MapArray,
-    StringArray, StructArray, UInt32Array, UnionArray,
+    Array, ArrayRef, BinaryArray, BooleanArray, Float64Array, Int16Array, Int32Array, Int64Array,
+    ListArray, MapArray, StringArray, StructArray, UInt32Array, UInt64Array, UnionArray,
 };
 use arrow::buffer::{Buffer, OffsetBuffer, ScalarBuffer};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -12,6 +11,7 @@ use arrow::error::ArrowError;
 use arrow::ffi_stream::ArrowArrayStreamReader;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
+use crate::ffi;
 use crate::{
     error::{Error, Result, Status},
     options::{
@@ -294,7 +294,6 @@ impl Connection for DummyConnection {
             Arc::new(StringArray::from(vec!["Hello", "World"])),
             None,
         );
-
         let int32_to_int32_list_map_array = MapArray::try_new(
             Arc::new(Field::new_struct(
                 "entries",
@@ -399,15 +398,116 @@ impl Connection for DummyConnection {
         Err(Error::with_message_and_status("", Status::NotImplemented))
     }
 
-    #[allow(refining_impl_trait)]
     fn get_statistics(
         &self,
         _catalog: Option<&str>,
         _db_schema: Option<&str>,
         _table_name: Option<&str>,
         _approximate: bool,
-    ) -> Result<ArrowArrayStreamReader> {
-        Err(Error::with_message_and_status("", Status::NotImplemented))
+    ) -> Result<impl RecordBatchReader> {
+        let statistic_value_int64_array = Int64Array::from(Vec::<i64>::new());
+        let statistic_value_uint64_array = UInt64Array::from(vec![42]);
+        let statistic_value_float64_array = Float64Array::from(Vec::<f64>::new());
+        let statistic_value_binary_array = BinaryArray::from(Vec::<&[u8]>::new());
+        let type_id_buffer = Buffer::from_slice_ref([1_i8]);
+        let value_offsets_buffer = Buffer::from_slice_ref([0_i32]);
+        let statistic_value_array = UnionArray::try_new(
+            &[0, 1, 2, 3],
+            type_id_buffer,
+            Some(value_offsets_buffer),
+            vec![
+                (
+                    Field::new("int64", DataType::Int64, true),
+                    Arc::new(statistic_value_int64_array),
+                ),
+                (
+                    Field::new("uint64", DataType::UInt64, true),
+                    Arc::new(statistic_value_uint64_array),
+                ),
+                (
+                    Field::new("float64", DataType::Float64, true),
+                    Arc::new(statistic_value_float64_array),
+                ),
+                (
+                    Field::new("binary", DataType::Binary, true),
+                    Arc::new(statistic_value_binary_array),
+                ),
+            ],
+        )?;
+
+        let db_schema_statistics_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("table_name", DataType::Utf8, false)),
+                Arc::new(StringArray::from(vec!["default"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("column_name", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["my_column"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new("statistic_key", DataType::Int16, false)),
+                Arc::new(Int16Array::from(vec![
+                    ffi::constants::ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY,
+                ])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "statistic_value",
+                    schemas::VALUE_SCHEMA.clone(),
+                    false,
+                )),
+                Arc::new(statistic_value_array) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new(
+                    "statistic_is_approximate",
+                    DataType::Boolean,
+                    false,
+                )),
+                Arc::new(BooleanArray::from(vec![false])) as ArrayRef,
+            ),
+        ]);
+
+        let db_schema_statistics_array = ListArray::new(
+            Arc::new(Field::new("item", schemas::STATISTICS_SCHEMA.clone(), true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(db_schema_statistics_array_inner),
+            None,
+        );
+
+        let catalog_db_schemas_array_inner = StructArray::from(vec![
+            (
+                Arc::new(Field::new("db_schema_name", DataType::Utf8, true)),
+                Arc::new(StringArray::from(vec!["default"])) as ArrayRef,
+            ),
+            (
+                Arc::new(Field::new_list(
+                    "db_schema_statistics",
+                    Arc::new(Field::new("item", schemas::STATISTICS_SCHEMA.clone(), true)),
+                    false,
+                )),
+                Arc::new(db_schema_statistics_array) as ArrayRef,
+            ),
+        ]);
+
+        let catalog_name_array = StringArray::from(vec!["default"]);
+        let catalog_db_schemas_array = ListArray::new(
+            Arc::new(Field::new("item", schemas::DB_SCHEMA_SCHEMA.clone(), true)),
+            OffsetBuffer::new(ScalarBuffer::from(vec![0, 1])),
+            Arc::new(catalog_db_schemas_array_inner),
+            None,
+        );
+
+        let batch = RecordBatch::try_new(
+            schemas::GET_STATISTICS_SCHEMA.clone(),
+            vec![
+                Arc::new(catalog_name_array),
+                Arc::new(catalog_db_schemas_array),
+            ],
+        )?;
+
+        let reader = SingleBatchReader::new(batch);
+        Ok(reader)
     }
 
     fn get_statistic_names(&self) -> Result<impl RecordBatchReader> {

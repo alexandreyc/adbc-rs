@@ -75,25 +75,30 @@ pub(crate) const ADBC_OPTION_ISOLATION_LEVEL_SERIALIZABLE: &str =
 pub(crate) const ADBC_OPTION_ISOLATION_LEVEL_LINEARIZABLE: &str =
     "adbc.connection.transaction.isolation.linearizable";
 
+pub(crate) const ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY: i16 = 0;
+// #define ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_NAME "adbc.statistic.byte_width"
+
+pub(crate) const ADBC_STATISTIC_DISTINCT_COUNT_KEY: i16 = 1;
+// #define ADBC_STATISTIC_DISTINCT_COUNT_NAME "adbc.statistic.distinct_count"
+
+pub(crate) const ADBC_STATISTIC_MAX_BYTE_WIDTH_KEY: i16 = 2;
+// #define ADBC_STATISTIC_MAX_BYTE_WIDTH_NAME "adbc.statistic.byte_width"
+
+pub(crate) const ADBC_STATISTIC_MAX_VALUE_KEY: i16 = 3;
+// #define ADBC_STATISTIC_MAX_VALUE_NAME "adbc.statistic.byte_width"
+
+pub(crate) const ADBC_STATISTIC_MIN_VALUE_KEY: i16 = 4;
+// #define ADBC_STATISTIC_MIN_VALUE_NAME "adbc.statistic.byte_width"
+
+pub(crate) const ADBC_STATISTIC_NULL_COUNT_KEY: i16 = 5;
+// #define ADBC_STATISTIC_NULL_COUNT_NAME "adbc.statistic.null_count"
+
+pub(crate) const ADBC_STATISTIC_ROW_COUNT_KEY: i16 = 6;
+// #define ADBC_STATISTIC_ROW_COUNT_NAME "adbc.statistic.row_count"
+
 // #define ADBC_OPTION_VALUE_ENABLED "true"
 // #define ADBC_OPTION_VALUE_DISABLED "false"
-
 // #define ADBC_ERROR_1_0_0_SIZE (offsetof(struct AdbcError, private_data))
 // #define ADBC_ERROR_1_1_0_SIZE (sizeof(struct AdbcError))
 // #define ADBC_DRIVER_1_0_0_SIZE (offsetof(struct AdbcDriver, ErrorGetDetailCount))
 // #define ADBC_DRIVER_1_1_0_SIZE (sizeof(struct AdbcDriver))
-
-// #define ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY 0
-// #define ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_NAME "adbc.statistic.byte_width"
-// #define ADBC_STATISTIC_DISTINCT_COUNT_KEY 1
-// #define ADBC_STATISTIC_DISTINCT_COUNT_NAME "adbc.statistic.distinct_count"
-// #define ADBC_STATISTIC_MAX_BYTE_WIDTH_KEY 2
-// #define ADBC_STATISTIC_MAX_BYTE_WIDTH_NAME "adbc.statistic.byte_width"
-// #define ADBC_STATISTIC_MAX_VALUE_KEY 3
-// #define ADBC_STATISTIC_MAX_VALUE_NAME "adbc.statistic.byte_width"
-// #define ADBC_STATISTIC_MIN_VALUE_KEY 4
-// #define ADBC_STATISTIC_MIN_VALUE_NAME "adbc.statistic.byte_width"
-// #define ADBC_STATISTIC_NULL_COUNT_KEY 5
-// #define ADBC_STATISTIC_NULL_COUNT_NAME "adbc.statistic.null_count"
-// #define ADBC_STATISTIC_ROW_COUNT_KEY 6
-// #define ADBC_STATISTIC_ROW_COUNT_NAME "adbc.statistic.row_count"

@@ -80,7 +80,7 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         ConnectionGetOptionBytes: Some(connection_get_option_bytes::<DriverType>),
         ConnectionGetOptionDouble: Some(connection_get_option_double::<DriverType>),
         ConnectionGetOptionInt: Some(connection_get_option_int::<DriverType>),
-        ConnectionGetStatistics: None,
+        ConnectionGetStatistics: Some(connection_get_statistics::<DriverType>),
         ConnectionGetStatisticNames: Some(connection_get_statistic_names::<DriverType>),
         ConnectionSetOptionBytes: Some(connection_set_option_bytes::<DriverType>),
         ConnectionSetOptionDouble: Some(connection_set_option_double::<DriverType>),
@@ -981,6 +981,50 @@ unsafe extern "C" fn connection_read_partition<DriverType: Driver + Default + 's
 
     let partition = std::slice::from_raw_parts(serialized_partition, serialized_length);
     let reader = check_err!(connection.read_partition(partition), error);
+    let reader = Box::new(reader);
+    let reader = FFI_ArrowArrayStream::new(reader);
+    std::ptr::write_unaligned(out, reader);
+
+    ADBC_STATUS_OK
+}
+
+unsafe extern "C" fn connection_get_statistics<DriverType: Driver + Default + 'static>(
+    connection: *mut FFI_AdbcConnection,
+    catalog: *const c_char,
+    db_schema: *const c_char,
+    table_name: *const c_char,
+    approximate: c_char,
+    out: *mut FFI_ArrowArrayStream,
+    error: *mut FFI_AdbcError,
+) -> FFI_AdbcStatusCode {
+    check_not_null!(connection, error);
+    check_not_null!(out, error);
+
+    let catalog = catalog
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let catalog = check_err!(catalog, error);
+
+    let db_schema = db_schema
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let db_schema = check_err!(db_schema, error);
+
+    let table_name = table_name
+        .as_ref()
+        .map(|c| CStr::from_ptr(c).to_str())
+        .transpose();
+    let table_name = check_err!(table_name, error);
+
+    let approximate = approximate != 0;
+
+    let exported = check_err!(connection_private_data::<DriverType>(connection), error);
+    let connection = exported.connection.as_ref().expect("Broken invariant");
+
+    let reader = connection.get_statistics(catalog, db_schema, table_name, approximate);
+    let reader = check_err!(reader, error);
     let reader = Box::new(reader);
     let reader = FFI_ArrowArrayStream::new(reader);
     std::ptr::write_unaligned(out, reader);

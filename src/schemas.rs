@@ -1,4 +1,4 @@
-//! Schemas that appear through ADBC.
+//! Schemas and data types that appear through ADBC.
 
 use std::sync::Arc;
 
@@ -56,9 +56,8 @@ pub static GET_STATISTIC_NAMES_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     ]))
 });
 
-/// Schema of data returned by [crate::Connection::get_statistics].
-pub static GET_STATISTICS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
-    let statistic_value_schema = DataType::Union(
+pub(crate) static VALUE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Union(
         UnionFields::new(
             vec![0, 1, 2, 3],
             vec![
@@ -69,36 +68,43 @@ pub static GET_STATISTICS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
             ],
         ),
         UnionMode::Dense,
-    );
+    )
+});
 
-    let statistics_schema = DataType::Struct(
+pub(crate) static STATISTICS_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("table_name", DataType::Utf8, false),
             Field::new("column_name", DataType::Utf8, true),
             Field::new("statistic_key", DataType::Int16, false),
-            Field::new("statistic_value", statistic_value_schema, false),
+            Field::new("statistic_value", VALUE_SCHEMA.clone(), false),
             Field::new("statistic_is_approximate", DataType::Boolean, false),
         ]
         .into(),
-    );
+    )
+});
 
-    let statistics_db_schema_schema = DataType::Struct(
+pub(crate) static DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+    DataType::Struct(
         vec![
             Field::new("db_schema_name", DataType::Utf8, true),
             Field::new(
                 "db_schema_statistics",
-                DataType::new_list(statistics_schema, true),
+                DataType::new_list(STATISTICS_SCHEMA.clone(), true),
                 false,
             ),
         ]
         .into(),
-    );
+    )
+});
 
+/// Schema of data returned by [crate::Connection::get_statistics].
+pub static GET_STATISTICS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![
         Field::new("catalog_name", DataType::Utf8, true),
         Field::new(
             "catalog_db_schemas",
-            DataType::new_list(statistics_db_schema_schema, true),
+            DataType::new_list(DB_SCHEMA_SCHEMA.clone(), true),
             false,
         ),
     ]))

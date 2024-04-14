@@ -365,7 +365,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
         db_schema: Option<&str>,
         table_name: Option<&str>,
         approximate: bool,
-    ) -> Result<impl RecordBatchReader>;
+    ) -> Result<impl RecordBatchReader + Send>;
 
     /// Commit any pending transactions. Only used if autocommit is disabled.
     ///
