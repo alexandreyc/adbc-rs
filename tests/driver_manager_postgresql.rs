@@ -45,16 +45,16 @@ fn test_database_get_set_option() {
     let mut database = get_database(&driver);
 
     let error = database.get_option_bytes(OptionDatabase::Uri).unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let error = database.get_option_string(OptionDatabase::Uri).unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let error = database.get_option_int(OptionDatabase::Uri).unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let error = database.get_option_double(OptionDatabase::Uri).unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     database
         .set_option(OptionDatabase::Uri, "uri".into())
@@ -63,17 +63,17 @@ fn test_database_get_set_option() {
     let error = database
         .set_option(OptionDatabase::Uri, b"uri".into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = database
         .set_option(OptionDatabase::Uri, 42.into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = database
         .set_option(OptionDatabase::Uri, 42.0.into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -98,17 +98,17 @@ fn test_connection_get_set_option() {
     let error = connection
         .get_option_bytes(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let error = connection
         .get_option_int(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let error = connection
         .get_option_double(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let value = connection
         .get_option_string(OptionConnection::CurrentSchema)
@@ -122,17 +122,17 @@ fn test_connection_get_set_option() {
     let error = connection
         .set_option(OptionConnection::CurrentSchema, b"my_schema".into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = connection
         .set_option(OptionConnection::CurrentSchema, 42.into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = connection
         .set_option(OptionConnection::CurrentSchema, 42.0.into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -238,12 +238,12 @@ fn test_statement_get_set_option() {
     let error = statement
         .set_option(OptionStatement::TargetTable, b"table".into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = statement
         .set_option(OptionStatement::TargetTable, 42.0.into())
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     statement
         .set_option(OptionStatement::TargetTable, "table".into())
@@ -259,12 +259,12 @@ fn test_statement_get_set_option() {
     let error = statement
         .get_option_bytes(OptionStatement::TargetTable)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let error = statement
         .get_option_double(OptionStatement::TargetTable)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotFound);
+    assert_eq!(error.status, Status::NotFound);
 
     let value = statement
         .get_option_string(OptionStatement::TargetTable)
@@ -304,7 +304,7 @@ fn test_statement_get_parameters_schema() {
     let connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     let error = statement.get_parameters_schema().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -332,7 +332,7 @@ fn test_statement_execute_schema() {
     let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_schema().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::InvalidState);
+    assert_eq!(error.status, Status::InvalidState);
 
     statement.set_sql_query("select 42 as col").unwrap();
     let got = statement.execute_schema().unwrap();

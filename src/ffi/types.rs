@@ -210,6 +210,28 @@ impl From<FFI_AdbcStatusCode> for error::Status {
     }
 }
 
+impl From<error::Status> for FFI_AdbcStatusCode {
+    fn from(value: error::Status) -> Self {
+        match value {
+            error::Status::Ok => ffi::constants::ADBC_STATUS_OK,
+            error::Status::Unknown => ffi::constants::ADBC_STATUS_UNKNOWN,
+            error::Status::NotImplemented => ffi::constants::ADBC_STATUS_NOT_IMPLEMENTED,
+            error::Status::NotFound => ffi::constants::ADBC_STATUS_NOT_FOUND,
+            error::Status::AlreadyExists => ffi::constants::ADBC_STATUS_ALREADY_EXISTS,
+            error::Status::InvalidArguments => ffi::constants::ADBC_STATUS_INVALID_ARGUMENT,
+            error::Status::InvalidState => ffi::constants::ADBC_STATUS_INVALID_STATE,
+            error::Status::InvalidData => ffi::constants::ADBC_STATUS_INVALID_DATA,
+            error::Status::Integrity => ffi::constants::ADBC_STATUS_INTEGRITY,
+            error::Status::Internal => ffi::constants::ADBC_STATUS_INTERNAL,
+            error::Status::IO => ffi::constants::ADBC_STATUS_IO,
+            error::Status::Cancelled => ffi::constants::ADBC_STATUS_CANCELLED,
+            error::Status::Timeout => ffi::constants::ADBC_STATUS_TIMEOUT,
+            error::Status::Unauthenticated => ffi::constants::ADBC_STATUS_UNAUTHENTICATED,
+            error::Status::Unauthorized => ffi::constants::ADBC_STATUS_UNAUTHORIZED,
+        }
+    }
+}
+
 impl From<&error::Status> for FFI_AdbcStatusCode {
     fn from(value: &error::Status) -> Self {
         match value {
@@ -463,19 +485,22 @@ impl FFI_AdbcError {
     }
 }
 
-impl From<&FFI_AdbcError> for error::Error {
-    fn from(value: &FFI_AdbcError) -> Self {
+impl TryFrom<&FFI_AdbcError> for error::Error {
+    type Error = error::Error;
+
+    fn try_from(value: &FFI_AdbcError) -> Result<Self, Self::Error> {
         let message = match value.message.is_null() {
-            true => None,
+            true => "<empty>".to_string(),
             false => {
                 let message = unsafe { CStr::from_ptr(value.message) };
-                Some(message.to_string_lossy().to_string())
+                let message = message.to_owned();
+                message.into_string()?
             }
         };
 
         let mut error = error::Error {
-            message,
-            status: None,
+            message: message.into(),
+            status: error::Status::Unknown,
             vendor_code: value.vendor_code,
             sqlstate: value.sqlstate,
             details: None,
@@ -499,13 +524,15 @@ impl From<&FFI_AdbcError> for error::Error {
             }
         }
 
-        error
+        Ok(error)
     }
 }
 
-impl From<FFI_AdbcError> for error::Error {
-    fn from(value: FFI_AdbcError) -> Self {
-        (&value).into()
+impl TryFrom<FFI_AdbcError> for error::Error {
+    type Error = error::Error;
+
+    fn try_from(value: FFI_AdbcError) -> Result<Self, Self::Error> {
+        (&value).try_into()
     }
 }
 
@@ -519,11 +546,7 @@ impl TryFrom<error::Error> for FFI_AdbcError {
     type Error = error::Error;
 
     fn try_from(mut value: error::Error) -> Result<Self, Self::Error> {
-        let message = value
-            .message
-            .map(CString::new)
-            .transpose()?
-            .map(|s| s.into_raw());
+        let message = CString::new(value.message)?;
 
         let private_data = match value.details.take() {
             None => null_mut(),
@@ -544,7 +567,7 @@ impl TryFrom<error::Error> for FFI_AdbcError {
         };
 
         Ok(FFI_AdbcError {
-            message: message.unwrap_or(null_mut()),
+            message: message.into_raw(),
             release: Some(release_ffi_error),
             vendor_code: value.vendor_code,
             sqlstate: value.sqlstate,

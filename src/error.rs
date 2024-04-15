@@ -5,7 +5,7 @@ use std::{ffi::NulError, fmt::Display};
 use arrow::error::ArrowError;
 
 /// Status of an operation.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Status {
     /// No error.
     Ok,
@@ -51,9 +51,9 @@ pub enum Status {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Error {
     /// The error message.
-    pub message: Option<String>,
+    pub message: String,
     /// The status of the operation.
-    pub status: Option<Status>,
+    pub status: Status,
     /// A vendor-specific error code, if applicable.
     pub vendor_code: i32,
     /// A SQLSTATE error code, if provided, as defined by the SQL:2003 standard.
@@ -69,8 +69,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Error {
     pub fn with_message_and_status(message: &str, status: Status) -> Self {
         Self {
-            message: Some(message.into()),
-            status: Some(status),
+            message: message.into(),
+            status: status,
             vendor_code: 0,
             sqlstate: [0; 5],
             details: None,
@@ -82,14 +82,8 @@ impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}: {} (sqlstate: {:?}, vendor_code: {})",
-            self.status
-                .as_ref()
-                .map(|s| format!("{:?}", s))
-                .unwrap_or_default(),
-            self.message.as_ref().unwrap_or(&"".into()),
-            self.sqlstate,
-            self.vendor_code
+            "{:?}: {} (sqlstate: {:?}, vendor_code: {})",
+            self.status, self.message, self.sqlstate, self.vendor_code
         )
     }
 }
@@ -99,8 +93,8 @@ impl std::error::Error for Error {}
 impl From<ArrowError> for Error {
     fn from(value: ArrowError) -> Self {
         Self {
-            message: Some(value.to_string()),
-            status: Some(Status::Internal),
+            message: value.to_string(),
+            status: Status::Internal,
             vendor_code: 0,
             sqlstate: [0; 5],
             details: None,
@@ -111,11 +105,11 @@ impl From<ArrowError> for Error {
 impl From<NulError> for Error {
     fn from(value: NulError) -> Self {
         Self {
-            message: Some(format!(
+            message: format!(
                 "Interior null byte was found at position {}",
                 value.nul_position()
-            )),
-            status: Some(Status::InvalidData),
+            ),
+            status: Status::InvalidData,
             vendor_code: 0,
             sqlstate: [0; 5],
             details: None,
@@ -126,8 +120,8 @@ impl From<NulError> for Error {
 impl From<libloading::Error> for Error {
     fn from(value: libloading::Error) -> Self {
         Self {
-            message: Some(format!("Error with dynamic library: {}", value)),
-            status: Some(Status::Internal),
+            message: format!("Error with dynamic library: {}", value),
+            status: Status::Internal,
             vendor_code: 0,
             sqlstate: [0; 5],
             details: None,
@@ -138,11 +132,18 @@ impl From<libloading::Error> for Error {
 impl From<std::str::Utf8Error> for Error {
     fn from(value: std::str::Utf8Error) -> Self {
         Self {
-            message: Some(format!("Error while decoding UTF-8: {}", value)),
-            status: Some(Status::Internal),
+            message: format!("Error while decoding UTF-8: {}", value),
+            status: Status::Internal,
             vendor_code: 0,
             sqlstate: [0; 5],
             details: None,
         }
+    }
+}
+
+impl From<std::ffi::IntoStringError> for Error {
+    fn from(value: std::ffi::IntoStringError) -> Self {
+        let error = value.utf8_error();
+        error.into()
     }
 }

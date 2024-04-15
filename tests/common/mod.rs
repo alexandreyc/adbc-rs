@@ -102,10 +102,10 @@ pub fn test_connection(connection: &mut ManagedConnection) {
 
 pub fn test_connection_commit_rollback(connection: &mut ManagedConnection) {
     let error = connection.commit().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::InvalidState);
+    assert_eq!(error.status, Status::InvalidState);
 
     let error = connection.rollback().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::InvalidState);
+    assert_eq!(error.status, Status::InvalidState);
 
     connection
         .set_option(OptionConnection::AutoCommit, "false".into())
@@ -238,7 +238,7 @@ pub fn test_statement(statement: &mut ManagedStatement) {
 
 pub fn test_statement_prepare(statement: &ManagedStatement) {
     let error = statement.prepare().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::InvalidState);
+    assert_eq!(error.status, Status::InvalidState);
 
     statement.set_sql_query("select 42").unwrap();
     statement.prepare().unwrap();
@@ -246,7 +246,7 @@ pub fn test_statement_prepare(statement: &ManagedStatement) {
 
 pub fn test_statement_set_substrait_plan(statement: &ManagedStatement) {
     let error = statement.set_substrait_plan(b"").unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 pub fn test_statement_execute(statement: &ManagedStatement) {
@@ -262,7 +262,7 @@ pub fn test_statement_execute_update(connection: &mut ManagedConnection) {
     let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_update().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::InvalidState);
+    assert_eq!(error.status, Status::InvalidState);
 
     connection
         .set_option(OptionConnection::AutoCommit, "false".into())
@@ -280,7 +280,7 @@ pub fn test_statement_execute_update(connection: &mut ManagedConnection) {
 
 pub fn test_statement_execute_partitions(statement: &ManagedStatement) {
     let error = statement.execute_partitions().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 pub fn test_statement_bind(statement: &ManagedStatement) {

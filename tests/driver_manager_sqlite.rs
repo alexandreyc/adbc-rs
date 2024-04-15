@@ -41,22 +41,22 @@ fn test_database_get_option() {
     let error = database
         .get_option_bytes(OptionDatabase::Username)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = database
         .get_option_string(OptionDatabase::Username)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = database
         .get_option_int(OptionDatabase::Username)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = database
         .get_option_double(OptionDatabase::Username)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -76,22 +76,22 @@ fn test_connection_get_option() {
     let error = connection
         .get_option_bytes(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = connection
         .get_option_string(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = connection
         .get_option_int(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 
     let error = connection
         .get_option_double(OptionConnection::AutoCommit)
         .unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_connection_cancel() {
     let connection = database.new_connection().unwrap();
 
     let error = connection.cancel().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -203,7 +203,7 @@ fn test_statement_get_parameters_schema() {
     let statement = connection.new_statement().unwrap();
 
     let error = statement.get_parameters_schema().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::InvalidState);
+    assert_eq!(error.status, Status::InvalidState);
 
     statement.set_sql_query("select 42").unwrap();
     statement.prepare().unwrap();
@@ -238,7 +238,7 @@ fn test_statement_execute_schema() {
     let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_schema().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn test_statement_cancel() {
     let statement = connection.new_statement().unwrap();
 
     let error = statement.cancel().unwrap_err();
-    assert_eq!(error.status.unwrap(), Status::NotImplemented);
+    assert_eq!(error.status, Status::NotImplemented);
 }
 
 #[test]

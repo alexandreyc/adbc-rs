@@ -91,7 +91,6 @@ use arrow::array::{Array, RecordBatch, RecordBatchReader, StructArray};
 use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
-use crate::ffi::FFI_AdbcDriver;
 use crate::{
     error::Status,
     options::{self, AdbcVersion, OptionValue},
@@ -112,8 +111,8 @@ pub(crate) fn check_status(
     match status {
         ffi::constants::ADBC_STATUS_OK => Ok(()),
         _ => {
-            let mut error: Error = error.into();
-            error.status = Some(status.into());
+            let mut error: Error = error.try_into()?;
+            error.status = status.into();
             Err(error)
         }
     }
@@ -274,7 +273,7 @@ fn set_option_database(
 fn get_option_bytes<F>(
     key: impl AsRef<str>,
     mut populate: F,
-    driver: *const FFI_AdbcDriver,
+    driver: &ffi::FFI_AdbcDriver,
 ) -> Result<Vec<u8>>
 where
     F: FnMut(
@@ -313,7 +312,7 @@ where
 fn get_option_string<F>(
     key: impl AsRef<str>,
     mut populate: F,
-    driver: *const FFI_AdbcDriver,
+    driver: &ffi::FFI_AdbcDriver,
 ) -> Result<String>
 where
     F: FnMut(

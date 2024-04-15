@@ -11,8 +11,8 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
 use crate::ffi::{
-    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcErrorDetail,
-    FFI_AdbcPartitions, FFI_AdbcStatement, FFI_AdbcStatusCode,
+    types::ErrorPrivateData, FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError,
+    FFI_AdbcErrorDetail, FFI_AdbcPartitions, FFI_AdbcStatement, FFI_AdbcStatusCode,
 };
 use crate::options::{InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionValue};
 use crate::{check_err, Connection, Database, Driver, Optionable, Statement};
@@ -150,10 +150,10 @@ macro_rules! check_err {
             Ok(x) => x,
             Err(error) => {
                 let error = $crate::error::Error::from(error);
-                let status: $crate::ffi::FFI_AdbcStatusCode =
-                    error.status.as_ref().expect("Missing error status").into();
+                let status: $crate::ffi::FFI_AdbcStatusCode = error.status.into();
                 if !$err_out.is_null() {
-                    let ffi_error = $crate::ffi::FFI_AdbcError::try_from(error).unwrap();
+                    let mut ffi_error = $crate::ffi::FFI_AdbcError::try_from(error).unwrap();
+                    ffi_error.private_driver = (*$err_out).private_driver;
                     unsafe { std::ptr::write_unaligned($err_out, ffi_error) };
                 }
                 return status;
@@ -1519,8 +1519,7 @@ unsafe extern "C" fn error_get_detail_count(error: *const FFI_AdbcError) -> c_in
         None => 0,
         Some(error) => {
             if !error.private_data.is_null() {
-                // TODO: double check that error.private_data is necessarly an ErrorPrivateData
-                let private_data = error.private_data as *const crate::ffi::types::ErrorPrivateData;
+                let private_data = error.private_data as *const ErrorPrivateData;
                 (*private_data)
                     .keys
                     .len()
@@ -1552,8 +1551,7 @@ unsafe extern "C" fn error_get_detail(
             }
             let index = index as usize; // Cannot overflow since index >= 0 and index < detail_count
 
-            // TODO: double check that error.private_data is necessarly an ErrorPrivateData
-            let private_data = error.private_data as *const crate::ffi::types::ErrorPrivateData;
+            let private_data = error.private_data as *const ErrorPrivateData;
 
             let key = (*private_data).keys[index].as_ptr();
             let value = (*private_data).values[index].as_ptr();
