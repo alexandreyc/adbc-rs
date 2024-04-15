@@ -14,7 +14,8 @@ In order to run integration tests you must:
 
 ## TODOs
 
-- Implement a Rust driver
-- Implement the driver exporter
 - Add enum for statistics
 - Add examples
+- Double check and document ADBC version compatibility for driver manager & exporter
+- More documentation (notably how to write and export a native Rust driver)
+- What to do with `ErrorFromArrayStream`?

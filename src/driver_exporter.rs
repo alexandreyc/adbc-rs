@@ -185,7 +185,6 @@ unsafe extern "C" fn release_ffi_driver(
     driver: *mut FFI_AdbcDriver,
     _error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
-    // TODO: if there is no private data is there more we should do?
     if let Some(driver) = driver.as_mut() {
         driver.release = None;
     }
@@ -1469,7 +1468,6 @@ unsafe extern "C" fn statement_set_sql_query<DriverType: Driver + Default>(
     let exported = check_err!(statement_private_data::<DriverType>(statement), error);
     let statement = &exported.statement;
 
-    // TODO: check query is not null
     let query = check_err!(CStr::from_ptr(query).to_str(), error);
     check_err!(statement.set_sql_query(query), error);
 
