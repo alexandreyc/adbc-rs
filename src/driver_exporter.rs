@@ -11,8 +11,8 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 use crate::error::{Error, Result, Status};
 use crate::ffi::constants::ADBC_STATUS_OK;
 use crate::ffi::{
-    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcPartitions,
-    FFI_AdbcStatement, FFI_AdbcStatusCode,
+    FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcDriver, FFI_AdbcError, FFI_AdbcErrorDetail,
+    FFI_AdbcPartitions, FFI_AdbcStatement, FFI_AdbcStatusCode,
 };
 use crate::options::{InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionValue};
 use crate::{check_err, Connection, Database, Driver, Optionable, Statement};
@@ -65,8 +65,8 @@ pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_A
         StatementSetOption: Some(statement_set_option::<DriverType>),
         StatementSetSqlQuery: Some(statement_set_sql_query::<DriverType>),
         StatementSetSubstraitPlan: Some(statement_set_substrait_plan::<DriverType>),
-        ErrorGetDetailCount: None,
-        ErrorGetDetail: None,
+        ErrorGetDetailCount: Some(error_get_detail_count),
+        ErrorGetDetail: Some(error_get_detail),
         ErrorFromArrayStream: None,
         DatabaseGetOption: Some(database_get_option::<DriverType>),
         DatabaseGetOptionBytes: Some(database_get_option_bytes::<DriverType>),
@@ -153,7 +153,7 @@ macro_rules! check_err {
                 let status: $crate::ffi::FFI_AdbcStatusCode =
                     error.status.as_ref().expect("Missing error status").into();
                 if !$err_out.is_null() {
-                    let ffi_error = $crate::ffi::FFI_AdbcError::from(error);
+                    let ffi_error = $crate::ffi::FFI_AdbcError::try_from(error).unwrap();
                     unsafe { std::ptr::write_unaligned($err_out, ffi_error) };
                 }
                 return status;
@@ -1510,4 +1510,60 @@ unsafe extern "C" fn statement_get_parameter_schema<DriverType: Driver + Default
     std::ptr::write_unaligned(schema, schema_value);
 
     ADBC_STATUS_OK
+}
+
+// Error
+
+unsafe extern "C" fn error_get_detail_count(error: *const FFI_AdbcError) -> c_int {
+    match error.as_ref() {
+        None => 0,
+        Some(error) => {
+            if !error.private_data.is_null() {
+                // TODO: double check that error.private_data is necessarly an ErrorPrivateData
+                let private_data = error.private_data as *const crate::ffi::types::ErrorPrivateData;
+                (*private_data)
+                    .keys
+                    .len()
+                    .try_into()
+                    .expect("Overflow with error detail count")
+            } else {
+                0
+            }
+        }
+    }
+}
+
+unsafe extern "C" fn error_get_detail(
+    error: *const FFI_AdbcError,
+    index: c_int,
+) -> FFI_AdbcErrorDetail {
+    let default = FFI_AdbcErrorDetail::default();
+
+    if index < 0 {
+        return default;
+    }
+
+    match error.as_ref() {
+        None => default,
+        Some(error) => {
+            let detail_count = error_get_detail_count(error);
+            if index >= detail_count {
+                return default;
+            }
+            let index = index as usize; // Cannot overflow since index >= 0 and index < detail_count
+
+            // TODO: double check that error.private_data is necessarly an ErrorPrivateData
+            let private_data = error.private_data as *const crate::ffi::types::ErrorPrivateData;
+
+            let key = (*private_data).keys[index].as_ptr();
+            let value = (*private_data).values[index].as_ptr();
+            let value_length = (*private_data).values[index].len();
+
+            FFI_AdbcErrorDetail {
+                key,
+                value,
+                value_length,
+            }
+        }
+    }
 }

@@ -48,7 +48,7 @@ pub enum Status {
 }
 
 /// An ADBC error.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Error {
     /// The error message.
     pub message: Option<String>,

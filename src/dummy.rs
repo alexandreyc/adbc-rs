@@ -274,8 +274,16 @@ impl Connection for DummyConnection {
         })
     }
 
+    // This method is used to test that errors round-trip correctly.
     fn cancel(&self) -> Result<()> {
-        Ok(())
+        let mut error = Error::with_message_and_status("message", Status::Cancelled);
+        error.vendor_code = ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA;
+        error.sqlstate = [1, 2, 3, 4, 5];
+        error.details = Some(vec![
+            ("key1".into(), b"AAA".into()),
+            ("key2".into(), b"ZZZZZ".into()),
+        ]);
+        Err(error)
     }
 
     fn commit(&self) -> Result<()> {

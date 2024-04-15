@@ -2,7 +2,6 @@
 
 use std::ffi::{CStr, CString};
 use std::mem::ManuallyDrop;
-use std::ops::Deref;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
 
@@ -33,11 +32,11 @@ pub struct FFI_AdbcError {
 #[derive(Debug)]
 pub struct FFI_AdbcErrorDetail {
     /// The metadata key.
-    key: *const c_char,
+    pub(crate) key: *const c_char,
     /// The binary metadata value.
-    value: *const u8,
+    pub(crate) value: *const u8,
     /// The length of the metadata value.
-    value_length: usize,
+    pub(crate) value_length: usize,
 }
 
 #[repr(C)]
@@ -178,13 +177,11 @@ pub struct FFI_AdbcDriver {
 }
 
 unsafe impl Send for FFI_AdbcDriver {}
+unsafe impl Sync for FFI_AdbcDriver {}
 
 macro_rules! driver_method {
     ($driver:expr, $method:ident) => {
-        $driver
-            .deref()
-            .$method
-            .unwrap_or(crate::ffi::methods::$method)
+        $driver.$method.unwrap_or(crate::ffi::methods::$method)
     };
 }
 
@@ -457,8 +454,17 @@ impl Default for FFI_AdbcPartitions {
     }
 }
 
-impl From<FFI_AdbcError> for error::Error {
-    fn from(value: FFI_AdbcError) -> Self {
+impl FFI_AdbcError {
+    pub fn with_driver(driver: *const FFI_AdbcDriver) -> Self {
+        FFI_AdbcError {
+            private_driver: driver,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<&FFI_AdbcError> for error::Error {
+    fn from(value: &FFI_AdbcError) -> Self {
         let message = match value.message.is_null() {
             true => None,
             false => {
@@ -479,9 +485,9 @@ impl From<FFI_AdbcError> for error::Error {
             if let Some(driver) = unsafe { value.private_driver.as_ref() } {
                 let get_detail_count = driver_method!(driver, ErrorGetDetailCount);
                 let get_detail = driver_method!(driver, ErrorGetDetail);
-                let num_details = unsafe { get_detail_count(&value) };
+                let num_details = unsafe { get_detail_count(value) };
                 let details = (0..num_details)
-                    .map(|i| unsafe { get_detail(&value, i) })
+                    .map(|i| unsafe { get_detail(value, i) })
                     .filter(|d| !d.key.is_null() && !d.value.is_null())
                     .map(|d| unsafe {
                         let key = CStr::from_ptr(d.key).to_string_lossy().to_string();
@@ -497,28 +503,68 @@ impl From<FFI_AdbcError> for error::Error {
     }
 }
 
-impl From<error::Error> for FFI_AdbcError {
-    fn from(value: error::Error) -> Self {
-        // TODO: what to do with `value.details`?
+impl From<FFI_AdbcError> for error::Error {
+    fn from(value: FFI_AdbcError) -> Self {
+        (&value).into()
+    }
+}
+
+// Invariant: keys.len() == values.len()
+pub(crate) struct ErrorPrivateData {
+    pub(crate) keys: Vec<CString>,
+    pub(crate) values: Vec<Vec<u8>>,
+}
+
+impl TryFrom<error::Error> for FFI_AdbcError {
+    type Error = error::Error;
+
+    fn try_from(mut value: error::Error) -> Result<Self, Self::Error> {
         let message = value
             .message
-            .map(|s| CString::new(s).expect("Unexpected interior null byte"))
+            .map(CString::new)
+            .transpose()?
             .map(|s| s.into_raw());
-        FFI_AdbcError {
+
+        let private_data = match value.details.take() {
+            None => null_mut(),
+            Some(details) => {
+                let keys: Result<Vec<CString>, _> = details
+                    .iter()
+                    .map(|(key, _)| CString::new(key.as_str()))
+                    .collect();
+                let values: Vec<Vec<u8>> = details.into_iter().map(|(_, value)| value).collect();
+
+                let private_data = Box::new(ErrorPrivateData {
+                    keys: keys?,
+                    values,
+                });
+                let private_data = Box::into_raw(private_data);
+                private_data as *mut c_void
+            }
+        };
+
+        Ok(FFI_AdbcError {
             message: message.unwrap_or(null_mut()),
             release: Some(release_ffi_error),
             vendor_code: value.vendor_code,
             sqlstate: value.sqlstate,
-            private_data: null_mut(),
+            private_data,
             private_driver: null(),
-        }
+        })
     }
 }
 
 unsafe extern "C" fn release_ffi_error(error: *mut FFI_AdbcError) {
     match error.as_mut() {
         None => (),
-        Some(error) => drop(CString::from_raw(error.message)),
+        Some(error) => {
+            drop(CString::from_raw(error.message));
+
+            if !error.private_data.is_null() {
+                let private_data = Box::from_raw(error.private_data as *mut ErrorPrivateData);
+                drop(private_data);
+            }
+        }
     }
 }
 

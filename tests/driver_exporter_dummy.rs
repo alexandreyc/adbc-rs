@@ -328,17 +328,26 @@ fn test_connection_get_info() {
 }
 
 #[test]
-fn test_connection_commit_rollback_cancel() {
+fn test_connection_cancel() {
+    let (_, _, exported_connection, _) = get_exported();
+    let (_, _, native_connection, _) = get_native();
+
+    let exported_error = exported_connection.cancel().unwrap_err();
+    let native_error = native_connection.cancel().unwrap_err();
+
+    assert_eq!(exported_error, native_error);
+}
+
+#[test]
+fn test_connection_commit_rollback() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
     exported_connection.commit().unwrap();
     exported_connection.rollback().unwrap();
-    exported_connection.cancel().unwrap();
 
     native_connection.commit().unwrap();
     native_connection.rollback().unwrap();
-    native_connection.cancel().unwrap();
 }
 
 #[test]
