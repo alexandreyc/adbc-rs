@@ -56,7 +56,7 @@ pub static GET_STATISTIC_NAMES_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     ]))
 });
 
-pub(crate) static STATISTIC_VALUE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static STATISTIC_VALUE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Union(
         UnionFields::new(
             vec![0, 1, 2, 3],
@@ -71,7 +71,7 @@ pub(crate) static STATISTIC_VALUE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-pub(crate) static STATISTICS_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static STATISTICS_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("table_name", DataType::Utf8, false),
@@ -84,7 +84,7 @@ pub(crate) static STATISTICS_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-pub(crate) static STATISTICS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static STATISTICS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("db_schema_name", DataType::Utf8, true),
@@ -110,7 +110,7 @@ pub static GET_STATISTICS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     ]))
 });
 
-pub(crate) static USAGE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static USAGE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("fk_catalog", DataType::Utf8, true),
@@ -122,7 +122,7 @@ pub(crate) static USAGE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-pub(crate) static CONSTRAINT_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static CONSTRAINT_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("constraint_name", DataType::Utf8, true),
@@ -142,7 +142,7 @@ pub(crate) static CONSTRAINT_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-pub(crate) static COLUMN_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static COLUMN_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("column_name", DataType::Utf8, false),
@@ -169,7 +169,7 @@ pub(crate) static COLUMN_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-pub(crate) static TABLE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static TABLE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("table_name", DataType::Utf8, false),
@@ -189,7 +189,7 @@ pub(crate) static TABLE_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-pub(crate) static OBJECTS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
+pub static OBJECTS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     DataType::Struct(
         vec![
             Field::new("db_schema_name", DataType::Utf8, true),

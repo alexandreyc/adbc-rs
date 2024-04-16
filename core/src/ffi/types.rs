@@ -25,7 +25,7 @@ pub struct FFI_AdbcError {
     /// Added in ADBC 1.1.0.
     pub(crate) private_data: *mut c_void,
     /// Added in ADBC 1.1.0.
-    pub(crate) private_driver: *const FFI_AdbcDriver,
+    pub private_driver: *const FFI_AdbcDriver,
 }
 
 #[repr(C)]

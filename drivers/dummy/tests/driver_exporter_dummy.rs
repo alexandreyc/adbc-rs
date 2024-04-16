@@ -1,23 +1,45 @@
 use std::ops::Deref;
+use std::sync::Arc;
 
-use adbc_rs::driver_manager::{ManagedConnection, ManagedDatabase, ManagedStatement};
-use adbc_rs::dummy::{DummyConnection, DummyDatabase, DummyStatement, SingleBatchReader};
+use arrow::array::{Array, Float64Array, Int64Array, StringArray};
+use arrow::compute::concat_batches;
+use arrow::datatypes::{DataType, Field, Schema};
+use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
-use adbc_rs::options::{InfoCode, ObjectDepth};
-use adbc_rs::Statement;
-use adbc_rs::{
-    driver_manager::DriverManager,
-    dummy::DummyDriver,
-    options::{
-        AdbcVersion, IngestMode, IsolationLevel, OptionConnection, OptionDatabase, OptionStatement,
-    },
-    schemas, Connection, Database, Driver, Optionable,
+use adbc_core::driver_manager::{
+    DriverManager, ManagedConnection, ManagedDatabase, ManagedStatement,
 };
+use adbc_core::options::{
+    AdbcVersion, InfoCode, IngestMode, IsolationLevel, ObjectDepth, OptionConnection,
+    OptionDatabase, OptionStatement,
+};
+use adbc_core::Statement;
+use adbc_core::{schemas, Connection, Database, Driver, Optionable};
 
-pub mod common;
+use adbc_dummy::{DummyConnection, DummyDatabase, DummyDriver, DummyStatement, SingleBatchReader};
 
 const OPTION_STRING_LONG: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPTION_BYTES_LONG: &[u8] = b"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+pub fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
+    let schema = reader.schema();
+    let batches: Vec<RecordBatch> = reader.map(|b| b.unwrap()).collect();
+    concat_batches(&schema, &batches).unwrap()
+}
+
+pub fn sample_batch() -> RecordBatch {
+    let columns: Vec<Arc<dyn Array>> = vec![
+        Arc::new(Int64Array::from(vec![1, 2, 3, 4])),
+        Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0, 4.0])),
+        Arc::new(StringArray::from(vec!["a", "b", "c", "d"])),
+    ];
+    let schema = Schema::new(vec![
+        Field::new("a", DataType::Int64, true),
+        Field::new("b", DataType::Float64, true),
+        Field::new("c", DataType::Utf8, true),
+    ]);
+    RecordBatch::try_new(Arc::new(schema), columns).unwrap()
+}
 
 fn get_exported() -> (
     DriverManager,
@@ -271,9 +293,8 @@ fn test_connection_get_table_types() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
-    let exported_table_types =
-        common::concat_reader(exported_connection.get_table_types().unwrap());
-    let native_table_types = common::concat_reader(native_connection.get_table_types().unwrap());
+    let exported_table_types = concat_reader(exported_connection.get_table_types().unwrap());
+    let native_table_types = concat_reader(native_connection.get_table_types().unwrap());
 
     assert_eq!(
         exported_table_types.schema(),
@@ -302,12 +323,12 @@ fn test_connection_get_info() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
-    let exported_info = common::concat_reader(exported_connection.get_info(None).unwrap());
-    let native_info = common::concat_reader(native_connection.get_info(None).unwrap());
+    let exported_info = concat_reader(exported_connection.get_info(None).unwrap());
+    let native_info = concat_reader(native_connection.get_info(None).unwrap());
     assert_eq!(exported_info.schema(), *schemas::GET_INFO_SCHEMA.deref());
     assert_eq!(exported_info, native_info);
 
-    let exported_info = common::concat_reader(
+    let exported_info = concat_reader(
         exported_connection
             .get_info(Some(vec![
                 InfoCode::DriverAdbcVersion,
@@ -315,7 +336,7 @@ fn test_connection_get_info() {
             ]))
             .unwrap(),
     );
-    let native_info = common::concat_reader(
+    let native_info = concat_reader(
         native_connection
             .get_info(Some(vec![
                 InfoCode::DriverAdbcVersion,
@@ -355,8 +376,8 @@ fn test_connection_get_statistic_names() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
-    let exported_names = common::concat_reader(exported_connection.get_statistic_names().unwrap());
-    let native_names = common::concat_reader(native_connection.get_statistic_names().unwrap());
+    let exported_names = concat_reader(exported_connection.get_statistic_names().unwrap());
+    let native_names = concat_reader(native_connection.get_statistic_names().unwrap());
 
     assert_eq!(
         exported_names.schema(),
@@ -370,9 +391,8 @@ fn test_connection_read_partition() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
-    let exported_partition =
-        common::concat_reader(exported_connection.read_partition(b"").unwrap());
-    let native_partition = common::concat_reader(native_connection.read_partition(b"").unwrap());
+    let exported_partition = concat_reader(exported_connection.read_partition(b"").unwrap());
+    let native_partition = concat_reader(native_connection.read_partition(b"").unwrap());
 
     assert_eq!(
         exported_partition.schema(),
@@ -389,12 +409,12 @@ fn test_connection_get_statistics() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
-    let exported_statistics = common::concat_reader(
+    let exported_statistics = concat_reader(
         exported_connection
             .get_statistics(None, None, None, false)
             .unwrap(),
     );
-    let native_statistics = common::concat_reader(
+    let native_statistics = concat_reader(
         native_connection
             .get_statistics(None, None, None, false)
             .unwrap(),
@@ -412,7 +432,7 @@ fn test_connection_get_objects() {
     let (_, _, exported_connection, _) = get_exported();
     let (_, _, native_connection, _) = get_native();
 
-    let exported_objects = common::concat_reader(
+    let exported_objects = concat_reader(
         exported_connection
             .get_objects(
                 ObjectDepth::All,
@@ -424,7 +444,7 @@ fn test_connection_get_objects() {
             )
             .unwrap(),
     );
-    let native_objects = common::concat_reader(
+    let native_objects = concat_reader(
         native_connection
             .get_objects(ObjectDepth::All, None, None, None, None, None)
             .unwrap(),
@@ -511,7 +531,7 @@ fn test_statement_bind() {
     let (_, _, _, exported_statement) = get_exported();
     let (_, _, _, native_statement) = get_native();
 
-    let batch = common::sample_batch();
+    let batch = sample_batch();
 
     exported_statement.bind(batch.clone()).unwrap();
     native_statement.bind(batch).unwrap();
@@ -522,11 +542,11 @@ fn test_statement_bind_stream() {
     let (_, _, _, exported_statement) = get_exported();
     let (_, _, _, native_statement) = get_native();
 
-    let batch = common::sample_batch();
+    let batch = sample_batch();
     let reader = Box::new(SingleBatchReader::new(batch));
     exported_statement.bind_stream(reader).unwrap();
 
-    let batch = common::sample_batch();
+    let batch = sample_batch();
     let reader = Box::new(SingleBatchReader::new(batch));
     native_statement.bind_stream(reader).unwrap();
 }
@@ -545,8 +565,8 @@ fn test_statement_execute_query() {
     let (_, _, _, exported_statement) = get_exported();
     let (_, _, _, native_statement) = get_native();
 
-    let exported_data = common::concat_reader(exported_statement.execute().unwrap());
-    let native_data = common::concat_reader(native_statement.execute().unwrap());
+    let exported_data = concat_reader(exported_statement.execute().unwrap());
+    let native_data = concat_reader(native_statement.execute().unwrap());
     assert_eq!(exported_data, native_data);
 
     let exported_data = exported_statement.execute_update().unwrap();

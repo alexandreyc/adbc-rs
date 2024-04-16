@@ -10,8 +10,8 @@ use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
-use crate::ffi;
-use crate::{
+use adbc_core::ffi;
+use adbc_core::{
     error::{Error, Result, Status},
     options::{
         InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement, OptionValue,
@@ -877,4 +877,4 @@ impl Statement for DummyStatement {
     }
 }
 
-crate::export_driver!(DummyDriverInit, DummyDriver);
+adbc_core::export_driver!(DummyDriverInit, DummyDriver);

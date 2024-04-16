@@ -1,9 +1,9 @@
 use arrow::datatypes::{Field, Schema};
 
-use adbc_rs::driver_manager::{DriverManager, ManagedDatabase};
-use adbc_rs::options::{AdbcVersion, OptionConnection, OptionDatabase};
-use adbc_rs::{error::Status, Driver, Optionable};
-use adbc_rs::{Connection, Database, Statement};
+use adbc_core::driver_manager::{DriverManager, ManagedDatabase};
+use adbc_core::options::{AdbcVersion, OptionConnection, OptionDatabase};
+use adbc_core::{error::Status, Driver, Optionable};
+use adbc_core::{Connection, Database, Statement};
 
 mod common;
 

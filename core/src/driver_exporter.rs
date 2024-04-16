@@ -34,7 +34,7 @@ struct ExportedStatement<DriverType: Driver + Default> {
         <<DriverType::DatabaseType as Database>::ConnectionType as Connection>::StatementType,
 }
 
-pub(crate) fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_AdbcDriver {
+pub fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_AdbcDriver {
     FFI_AdbcDriver {
         private_data: std::ptr::null_mut(),
         private_manager: std::ptr::null(),

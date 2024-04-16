@@ -2,15 +2,15 @@ use std::collections::HashSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use adbc_rs::driver_manager::{
+use adbc_core::driver_manager::{
     DriverManager, ManagedConnection, ManagedDatabase, ManagedStatement,
 };
-use adbc_rs::error::Status;
-use adbc_rs::options::{
+use adbc_core::error::Status;
+use adbc_core::options::{
     InfoCode, IngestMode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement,
 };
-use adbc_rs::schemas;
-use adbc_rs::{Connection, Database, Driver, Optionable, Statement};
+use adbc_core::schemas;
+use adbc_core::{Connection, Database, Driver, Optionable, Statement};
 
 use arrow::array::{as_string_array, Array, Float64Array, Int64Array, StringArray};
 use arrow::compute::concat_batches;

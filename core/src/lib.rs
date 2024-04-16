@@ -35,9 +35,8 @@
 
 pub mod driver_exporter;
 pub mod driver_manager;
-pub mod dummy;
 pub mod error;
-pub(crate) mod ffi;
+pub mod ffi;
 pub mod options;
 pub mod schemas;
 
