@@ -78,7 +78,7 @@ fn test_database_options() {
     let options = [
         (OptionDatabase::Username, "Alice".into()),
         (OptionDatabase::Password, 42.into()),
-        (OptionDatabase::Uri, 3.14.into()),
+        (OptionDatabase::Uri, std::f64::consts::PI.into()),
         (OptionDatabase::Other("pre.bytes".into()), b"Hello".into()),
         (
             OptionDatabase::Other("pre.string.long".into()),
@@ -101,20 +101,20 @@ fn test_database_options() {
     assert_eq!(value, 42);
 
     let value = database.get_option_double(OptionDatabase::Uri).unwrap();
-    assert_eq!(value, 3.14);
+    assert_eq!(value, std::f64::consts::PI);
 
     let value = database
-        .get_option_bytes(OptionDatabase::Other("pre.bytes".into()).into())
+        .get_option_bytes(OptionDatabase::Other("pre.bytes".into()))
         .unwrap();
     assert_eq!(value, b"Hello");
 
     let value = database
-        .get_option_string(OptionDatabase::Other("pre.string.long".into()).into())
+        .get_option_string(OptionDatabase::Other("pre.string.long".into()))
         .unwrap();
     assert_eq!(value, OPTION_STRING_LONG);
 
     let value = database
-        .get_option_bytes(OptionDatabase::Other("pre.bytes.long".into()).into())
+        .get_option_bytes(OptionDatabase::Other("pre.bytes.long".into()))
         .unwrap();
     assert_eq!(value, OPTION_BYTES_LONG);
 
@@ -184,7 +184,7 @@ fn test_connection_options() {
     let options = [
         (OptionConnection::CurrentCatalog, "Alice".into()),
         (OptionConnection::AutoCommit, 42.into()),
-        (OptionConnection::CurrentSchema, 3.14.into()),
+        (OptionConnection::CurrentSchema, std::f64::consts::PI.into()),
         (
             OptionConnection::IsolationLevel,
             IsolationLevel::Linearizable.into(),
@@ -213,7 +213,7 @@ fn test_connection_options() {
     let value = connection
         .get_option_double(OptionConnection::CurrentSchema)
         .unwrap();
-    assert_eq!(value, 3.14);
+    assert_eq!(value, std::f64::consts::PI);
 
     let value = connection
         .get_option_string(OptionConnection::IsolationLevel)
@@ -483,12 +483,12 @@ fn test_statement_options() {
     assert_eq!(value, 42);
 
     statement
-        .set_option(OptionStatement::MaxProgress, 3.14.into())
+        .set_option(OptionStatement::MaxProgress, std::f64::consts::PI.into())
         .unwrap();
     let value = statement
         .get_option_double(OptionStatement::MaxProgress)
         .unwrap();
-    assert_eq!(value, 3.14);
+    assert_eq!(value, std::f64::consts::PI);
 
     statement
         .set_option(OptionStatement::Other("bytes".into()), b"Hello".into())

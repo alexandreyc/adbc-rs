@@ -128,7 +128,7 @@ pub fn test_connection_get_table_types(connection: &ManagedConnection, actual: &
     assert!(got.iter().all(|x| x.is_some()));
 
     let got: HashSet<&str> = got.into_iter().map(|x| x.unwrap()).collect();
-    let actual: HashSet<&str> = actual.iter().map(|x| *x).collect();
+    let actual: HashSet<&str> = actual.iter().copied().collect();
     assert_eq!(got, actual);
 }
 

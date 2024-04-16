@@ -14,9 +14,8 @@ fn get_driver() -> DriverManager {
 }
 
 fn get_uri() -> String {
-    let uri = env::var("TEST_ADBC_POSTGRESQL_URI")
-        .expect("environment variable TEST_ADBC_POSTGRESQL_URI is not defined");
-    uri
+    env::var("TEST_ADBC_POSTGRESQL_URI")
+        .expect("environment variable TEST_ADBC_POSTGRESQL_URI is not defined")
 }
 
 fn get_database(driver: &DriverManager) -> ManagedDatabase {
