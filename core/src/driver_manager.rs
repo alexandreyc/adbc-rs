@@ -878,11 +878,12 @@ impl Connection for ManagedConnection {
         Ok(reader)
     }
 
-    fn read_partition(&self, partition: &[u8]) -> Result<impl RecordBatchReader> {
+    fn read_partition(&self, partition: impl AsRef<[u8]>) -> Result<impl RecordBatchReader> {
         let mut stream = FFI_ArrowArrayStream::empty();
         let driver = &self.inner.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, ConnectionReadPartition);
+        let partition = partition.as_ref();
         let status = unsafe {
             method(
                 self.inner.connection.borrow_mut().deref_mut(),

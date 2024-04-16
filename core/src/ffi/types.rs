@@ -499,7 +499,7 @@ impl TryFrom<&FFI_AdbcError> for error::Error {
         };
 
         let mut error = error::Error {
-            message: message.into(),
+            message,
             status: error::Status::Unknown,
             vendor_code: value.vendor_code,
             sqlstate: value.sqlstate,
