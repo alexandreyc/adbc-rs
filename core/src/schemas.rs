@@ -5,7 +5,7 @@ use std::sync::Arc;
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef, UnionFields, UnionMode};
 use once_cell::sync::Lazy;
 
-/// Schema of the data returned by [crate::Connection::get_table_types].
+/// Schema of the data returned by [get_table_types][crate::Connection::get_table_types].
 pub static GET_TABLE_TYPES_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![Field::new(
         "table_type",
@@ -14,7 +14,7 @@ pub static GET_TABLE_TYPES_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     )]))
 });
 
-/// Schema of the data returned by [crate::Connection::get_info].
+/// Schema of the data returned by [get_info][crate::Connection::get_info].
 pub static GET_INFO_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     let info_schema = DataType::Union(
         UnionFields::new(
@@ -48,7 +48,7 @@ pub static GET_INFO_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     ]))
 });
 
-/// Schema of data returned by [crate::Connection::get_statistic_names].
+/// Schema of data returned by [get_statistic_names][crate::Connection::get_statistic_names].
 pub static GET_STATISTIC_NAMES_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![
         Field::new("statistic_name", DataType::Utf8, false),
@@ -98,7 +98,7 @@ pub static STATISTICS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-/// Schema of data returned by [crate::Connection::get_statistics].
+/// Schema of data returned by [get_statistics][crate::Connection::get_statistics].
 pub static GET_STATISTICS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![
         Field::new("catalog_name", DataType::Utf8, true),
@@ -203,7 +203,7 @@ pub static OBJECTS_DB_SCHEMA_SCHEMA: Lazy<DataType> = Lazy::new(|| {
     )
 });
 
-/// Schema of data returned by [crate::Connection::get_objects].
+/// Schema of data returned by [get_objects][crate::Connection::get_objects].
 pub static GET_OBJECTS_SCHEMA: Lazy<SchemaRef> = Lazy::new(|| {
     Arc::new(Schema::new(vec![
         Field::new("catalog_name", DataType::Utf8, true),

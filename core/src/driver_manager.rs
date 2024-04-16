@@ -37,7 +37,7 @@
 //! #     datatypes::{Field, Schema, DataType},
 //! #     compute::concat_batches,
 //! # };
-//! # use adbc_rs::{
+//! # use adbc_core::{
 //! #     driver_manager::DriverManager,
 //! #     options::{AdbcVersion, OptionDatabase, OptionStatement},
 //! #     Connection, Database, Driver, Statement, Optionable

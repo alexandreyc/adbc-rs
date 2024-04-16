@@ -1,4 +1,4 @@
-//! Error and result types.
+//! Error, status and result types.
 
 use std::{ffi::NulError, fmt::Display};
 
@@ -59,7 +59,7 @@ pub struct Error {
     /// A SQLSTATE error code, if provided, as defined by the SQL:2003 standard.
     /// If not set, it should be set to `\0\0\0\0\0`.
     pub sqlstate: [i8; 5],
-    /// Additional metadata.
+    /// Additional metadata. Introduced in ADBC 1.1.0.
     pub details: Option<Vec<(String, Vec<u8>)>>,
 }
 
@@ -70,7 +70,7 @@ impl Error {
     pub fn with_message_and_status(message: &str, status: Status) -> Self {
         Self {
             message: message.into(),
-            status: status,
+            status,
             vendor_code: 0,
             sqlstate: [0; 5],
             details: None,

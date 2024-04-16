@@ -9,7 +9,6 @@ edition = "2021"
 authors = ["Alexandre Crayssac <alexandre@crayssac.net>"]
 license = "Apache-2.0"
 
-
 [workspace.dependencies]
 arrow = { version = "51.0.0", default-features = false, features = ["ffi"] }
 adbc_core = { path = "./core" }

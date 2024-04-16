@@ -75,7 +75,7 @@ pub enum AdbcVersion {
     V110,
 }
 
-impl From<AdbcVersion> for i32 {
+impl From<AdbcVersion> for c_int {
     fn from(value: AdbcVersion) -> Self {
         match value {
             AdbcVersion::V100 => constants::ADBC_VERSION_1_0_0,
@@ -105,6 +105,7 @@ pub enum InfoCode {
     ///
     /// ADBC API revision 1.1.0
     DriverAdbcVersion,
+    // TODO(alexandreyc): add new codes (see https://github.com/apache/arrow-adbc/commit/aa04aadccd319e6fa3abb07154fa8d87b58d5c21)
 }
 
 impl From<&InfoCode> for u32 {
@@ -135,7 +136,7 @@ impl TryFrom<u32> for InfoCode {
             constants::ADBC_INFO_DRIVER_ADBC_VERSION => Ok(InfoCode::DriverAdbcVersion),
             v => Err(Error::with_message_and_status(
                 &format!("Unknown info code: {}", v),
-                Status::InvalidArguments,
+                Status::InvalidData,
             )),
         }
     }
@@ -178,8 +179,8 @@ impl TryFrom<c_int> for ObjectDepth {
             constants::ADBC_OBJECT_DEPTH_DB_SCHEMAS => Ok(ObjectDepth::Schemas),
             constants::ADBC_OBJECT_DEPTH_TABLES => Ok(ObjectDepth::Tables),
             v => Err(Error::with_message_and_status(
-                &format!("Unknow object depth: {}", v),
-                Status::InvalidArguments,
+                &format!("Unknown object depth: {}", v),
+                Status::InvalidData,
             )),
         }
     }
@@ -355,7 +356,7 @@ impl From<&str> for OptionStatement {
     }
 }
 
-/// Isolation level value for key [IsolationLevel][OptionConnection::IsolationLevel].
+/// Isolation level value for key [OptionConnection::IsolationLevel].
 #[derive(Debug)]
 pub enum IsolationLevel {
     /// Use database or driver default isolation level.
@@ -430,7 +431,7 @@ impl From<IsolationLevel> for OptionValue {
     }
 }
 
-/// Ingestion mode value for key [IngestMode][OptionStatement::IngestMode].
+/// Ingestion mode value for key [OptionStatement::IngestMode].
 #[derive(Debug)]
 pub enum IngestMode {
     /// Create the table and insert data; error if the table exists.

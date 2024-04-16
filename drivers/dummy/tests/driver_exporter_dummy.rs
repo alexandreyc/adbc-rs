@@ -47,9 +47,8 @@ fn get_exported() -> (
     ManagedConnection,
     ManagedStatement,
 ) {
-    // TODO: make something more robust
     let driver =
-        DriverManager::load_dynamic("adbc_rs", Some(b"DummyDriverInit"), AdbcVersion::V110)
+        DriverManager::load_dynamic("adbc_dummy", Some(b"DummyDriverInit"), AdbcVersion::V110)
             .unwrap();
     let database = driver.new_database().unwrap();
     let connection = database.new_connection().unwrap();

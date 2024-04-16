@@ -46,14 +46,14 @@ use arrow::datatypes::Schema;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use error::{Error, Result};
-use options::{OptionConnection, OptionDatabase, OptionStatement};
+use options::{OptionConnection, OptionDatabase, OptionStatement, OptionValue};
 
-/// Ability to configure an object.
+/// Ability to configure an object by setting/getting options.
 pub trait Optionable {
     type Option: AsRef<str>;
 
     /// Set a post-init option.
-    fn set_option(&mut self, key: Self::Option, value: options::OptionValue) -> Result<()>;
+    fn set_option(&mut self, key: Self::Option, value: OptionValue) -> Result<()>;
 
     /// Get a string option value by key.
     fn get_option_string(&self, key: Self::Option) -> Result<String>;
@@ -68,7 +68,7 @@ pub trait Optionable {
     fn get_option_double(&self, key: Self::Option) -> Result<f64>;
 }
 
-/// A handle to a driver.
+/// A handle to an ADBC driver.
 pub trait Driver {
     type DatabaseType: Database;
 
@@ -78,11 +78,11 @@ pub trait Driver {
     /// Allocate and initialize a new database with pre-init options.
     fn new_database_with_opts(
         &self,
-        opts: impl Iterator<Item = (OptionDatabase, options::OptionValue)>,
+        opts: impl Iterator<Item = (OptionDatabase, OptionValue)>,
     ) -> Result<Self::DatabaseType>;
 }
 
-/// A handle to a database.
+/// A handle to an ADBC database.
 ///
 /// Databases hold state shared by multiple connections. This typically means
 /// configuration and caches. For in-memory databases, it provides a place to
@@ -98,11 +98,11 @@ pub trait Database: Optionable<Option = OptionDatabase> {
     /// Allocate and initialize a new connection with pre-init options.
     fn new_connection_with_opts(
         &self,
-        opts: impl Iterator<Item = (options::OptionConnection, options::OptionValue)>,
+        opts: impl Iterator<Item = (options::OptionConnection, OptionValue)>,
     ) -> Result<Self::ConnectionType>;
 }
 
-/// A handle to a connection.
+/// A handle to an ADBC connection.
 ///
 /// Connections provide methods for query execution, managing prepared
 /// statements, using transactions, and so on.
@@ -386,7 +386,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     fn read_partition(&self, partition: &[u8]) -> Result<impl RecordBatchReader + Send>;
 }
 
-/// A handle to a statement.
+/// A handle to an ADBC statement.
 ///
 /// A statement is a container for all state needed to execute a database query,
 /// such as the query itself, parameters for prepared statements, driver
