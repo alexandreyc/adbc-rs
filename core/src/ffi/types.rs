@@ -205,7 +205,7 @@ impl From<FFI_AdbcStatusCode> for error::Status {
             ffi::constants::ADBC_STATUS_TIMEOUT => error::Status::Timeout,
             ffi::constants::ADBC_STATUS_UNAUTHENTICATED => error::Status::Unauthenticated,
             ffi::constants::ADBC_STATUS_UNAUTHORIZED => error::Status::Unauthorized,
-            _ => panic!("Invalid ADBC status code value: {}", value),
+            _ => panic!("Invalid ADBC status code value: {value}"),
         }
     }
 }
