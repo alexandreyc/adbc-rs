@@ -113,7 +113,7 @@ macro_rules! export_driver {
         ) -> $crate::ffi::FFI_AdbcStatusCode {
             if version != $crate::options::AdbcVersion::V110.into() {
                 let err = $crate::error::Error::with_message_and_status(
-                    &format!("Unsupported ADBC version: {version}"),
+                    format!("Unsupported ADBC version: {version}"),
                     $crate::error::Status::NotImplemented,
                 );
                 $crate::check_err!(Err(err), error);
@@ -171,7 +171,7 @@ macro_rules! check_not_null {
     ($ptr:ident, $err_out:expr) => {
         let res = if $ptr.is_null() {
             Err(Error::with_message_and_status(
-                &format!("Passed null pointer for argument {:?}", stringify!($ptr)),
+                format!("Passed null pointer for argument {:?}", stringify!($ptr)),
                 Status::InvalidArguments,
             ))
         } else {
@@ -227,14 +227,14 @@ where
         let optvalue = options
             .get(&key.into())
             .ok_or(Error::with_message_and_status(
-                &format!("Option key not found: {key:?}"),
+                format!("Option key not found: {key:?}"),
                 Status::NotFound,
             ))?;
         if let OptionValue::Int(optvalue) = optvalue {
             Ok(*optvalue)
         } else {
             let err = Error::with_message_and_status(
-                &format!("Option value for key {key:?} has wrong type"),
+                format!("Option value for key {key:?} has wrong type"),
                 Status::InvalidState,
             );
             Err(err)
@@ -261,14 +261,14 @@ where
         let optvalue = options
             .get(&key.into())
             .ok_or(Error::with_message_and_status(
-                &format!("Option key not found: {key}"),
+                format!("Option key not found: {key}"),
                 Status::NotFound,
             ))?;
         if let OptionValue::Double(optvalue) = optvalue {
             Ok(*optvalue)
         } else {
             let err = Error::with_message_and_status(
-                &format!("Option value for key {:?} has wrong type", key),
+                format!("Option value for key {:?} has wrong type", key),
                 Status::InvalidState,
             );
             Err(err)
@@ -295,14 +295,14 @@ where
         let optvalue = options
             .get(&key.into())
             .ok_or(Error::with_message_and_status(
-                &format!("Option key not found: {key:?}"),
+                format!("Option key not found: {key:?}"),
                 Status::NotFound,
             ))?;
         if let OptionValue::String(optvalue) = optvalue {
             Ok(optvalue.clone())
         } else {
             let err = Error::with_message_and_status(
-                &format!("Option value for key {key:?} has wrong type"),
+                format!("Option value for key {key:?} has wrong type"),
                 Status::InvalidState,
             );
             Err(err)
@@ -329,14 +329,14 @@ where
         let optvalue = options
             .get(&key.into())
             .ok_or(Error::with_message_and_status(
-                &format!("Option key not found: {key:?}"),
+                format!("Option key not found: {key:?}"),
                 Status::NotFound,
             ))?;
         if let OptionValue::Bytes(optvalue) = optvalue {
             Ok(optvalue.clone())
         } else {
             let err = Error::with_message_and_status(
-                &format!("Option value for key {key:?} has wrong type"),
+                format!("Option value for key {key:?} has wrong type"),
                 Status::InvalidState,
             );
             Err(err)
