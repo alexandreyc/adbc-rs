@@ -1,3 +1,7 @@
+/// This integration test compares the output of the dummy driver when it's used
+/// directly using the Rust API (native) and trough the exported driver via the
+/// driver manager (exported). That allows us to test that data correctly round-trip
+/// between C and Rust.
 use std::ops::Deref;
 use std::sync::Arc;
 

@@ -160,13 +160,7 @@ where
     }
 }
 
-/// A dummy driver mainly used for example and testing.
-///
-/// It contains:
-/// - Two table types: `table` and `view`
-/// - One catalog: `default`
-/// - One database schema: `default`
-/// - One table: `default`
+/// A dummy driver used for testing purposes.
 #[derive(Default)]
 pub struct DummyDriver {}
 
