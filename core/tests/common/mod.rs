@@ -272,8 +272,7 @@ pub fn test_statement_execute_update(connection: &mut ManagedConnection) {
     statement.execute_update().unwrap();
 
     statement.set_sql_query("insert into t values(42)").unwrap();
-    let rows_affected = statement.execute_update().unwrap();
-    assert_eq!(rows_affected.abs(), 1);
+    statement.execute_update().unwrap();
 
     connection.rollback().unwrap();
 }

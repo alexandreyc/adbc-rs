@@ -1031,7 +1031,7 @@ impl Statement for ManagedStatement {
         Ok((&schema).try_into()?)
     }
 
-    fn execute_update(&self) -> Result<i64> {
+    fn execute_update(&self) -> Result<Option<i64>> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementExecuteQuery);
@@ -1045,6 +1045,11 @@ impl Statement for ManagedStatement {
             )
         };
         check_status(status, error)?;
+        let rows_affected = if rows_affected == -1 {
+            None
+        } else {
+            Some(rows_affected)
+        };
         Ok(rows_affected)
     }
 

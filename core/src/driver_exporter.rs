@@ -1389,7 +1389,7 @@ unsafe extern "C" fn statement_execute_query<DriverType: Driver + Default + 'sta
         let reader = FFI_ArrowArrayStream::new(reader);
         std::ptr::write_unaligned(out, reader);
     } else {
-        let rows_affected_value = check_err!(statement.execute_update(), error);
+        let rows_affected_value = check_err!(statement.execute_update(), error).unwrap_or(-1);
         if !rows_affected.is_null() {
             std::ptr::write_unaligned(rows_affected, rows_affected_value);
         }
