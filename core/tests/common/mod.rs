@@ -67,7 +67,7 @@ pub fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
     concat_batches(&schema, &batches).unwrap()
 }
 
-pub fn test_driver(driver: &DriverManager, uri: &str) {
+pub fn test_driver(driver: &mut DriverManager, uri: &str) {
     let opts = [(OptionDatabase::Uri, uri.into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap();
 
@@ -76,7 +76,7 @@ pub fn test_driver(driver: &DriverManager, uri: &str) {
     assert!(driver.new_database_with_opts(opts.into_iter()).is_err());
 }
 
-pub fn test_database(database: &ManagedDatabase) {
+pub fn test_database(database: &mut ManagedDatabase) {
     assert!(database.new_connection().is_ok());
 
     let opts = [(OptionConnection::AutoCommit, "true".into())];

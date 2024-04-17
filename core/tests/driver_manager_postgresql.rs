@@ -18,30 +18,30 @@ fn get_uri() -> String {
         .expect("environment variable TEST_ADBC_POSTGRESQL_URI is not defined")
 }
 
-fn get_database(driver: &DriverManager) -> ManagedDatabase {
+fn get_database(driver: &mut DriverManager) -> ManagedDatabase {
     let opts = [(OptionDatabase::Uri, get_uri().into())];
     driver.new_database_with_opts(opts.into_iter()).unwrap()
 }
 
 #[test]
 fn test_driver() {
-    let driver = get_driver();
-    common::test_driver(&driver, &get_uri());
+    let mut driver = get_driver();
+    common::test_driver(&mut driver, &get_uri());
     // PostgreSQL's driver requires option "uri" to be set before creating a connection.
     assert!(driver.new_database().is_err());
 }
 
 #[test]
 fn test_database() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    common::test_database(&database);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    common::test_database(&mut database);
 }
 
 #[test]
 fn test_database_get_set_option() {
-    let driver = get_driver();
-    let mut database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
 
     let error = database.get_option_bytes(OptionDatabase::Uri).unwrap_err();
     assert_eq!(error.status, Status::NotFound);
@@ -77,16 +77,16 @@ fn test_database_get_set_option() {
 
 #[test]
 fn test_connection() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     common::test_connection(&mut connection);
 }
 
 #[test]
 fn test_connection_get_set_option() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
 
     let value = connection
@@ -136,32 +136,32 @@ fn test_connection_get_set_option() {
 
 #[test]
 fn test_connection_cancel() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     connection.cancel().unwrap();
 }
 
 #[test]
 fn test_connection_commit_rollback() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     common::test_connection_commit_rollback(&mut connection);
 }
 
 #[test]
 fn test_connection_read_partition() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     common::test_connection_read_partition(&connection);
 }
 
 #[test]
 fn test_connection_get_table_types() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     common::test_connection_get_table_types(
         &connection,
@@ -178,32 +178,32 @@ fn test_connection_get_table_types() {
 
 #[test]
 fn test_connection_get_info() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     common::test_connection_get_info(&connection, 6);
 }
 
 #[test]
 fn test_connection_get_objects() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     common::test_connection_get_objects(&connection, 3, 3);
 }
 
 #[test]
 fn test_connection_get_table_schema() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     common::test_connection_get_table_schema(&mut connection);
 }
 
 #[test]
 fn test_connection_get_statistic_names() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     let names = common::concat_reader(connection.get_statistic_names().unwrap());
     assert_eq!(names.num_columns(), 2);
@@ -212,26 +212,26 @@ fn test_connection_get_statistic_names() {
 
 #[test]
 fn test_connection_get_statistics() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let connection = database.new_connection().unwrap();
     assert!(connection.get_statistics(None, None, None, false).is_err());
 }
 
 #[test]
 fn test_statement() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
     common::test_statement(&mut statement);
 }
 
 #[test]
 fn test_statement_get_set_option() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
     let error = statement
@@ -280,27 +280,27 @@ fn test_statement_get_set_option() {
 
 #[test]
 fn test_statement_prepare() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     common::test_statement_prepare(&statement);
 }
 
 #[test]
 fn test_statement_set_substrait_plan() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     common::test_statement_set_substrait_plan(&statement);
 }
 
 #[test]
 fn test_statement_get_parameters_schema() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     let error = statement.get_parameters_schema().unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
@@ -308,26 +308,26 @@ fn test_statement_get_parameters_schema() {
 
 #[test]
 fn test_statement_execute() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     common::test_statement_execute(&statement);
 }
 
 #[test]
 fn test_statement_execute_update() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     common::test_statement_execute_update(&mut connection);
 }
 
 #[test]
 fn test_statement_execute_schema() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
 
     let error = statement.execute_schema().unwrap_err();
@@ -341,44 +341,44 @@ fn test_statement_execute_schema() {
 
 #[test]
 fn test_statement_execute_partitions() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     common::test_statement_execute_partitions(&statement);
 }
 
 #[test]
 fn test_statement_cancel() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     statement.cancel().unwrap();
 }
 
 #[test]
 fn test_statement_bind() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     common::test_statement_bind(&statement);
 }
 
 #[test]
 fn test_statement_bind_stream() {
-    let driver = get_driver();
-    let database = get_database(&driver);
-    let connection = database.new_connection().unwrap();
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
+    let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
     common::test_statement_bind_stream(&statement);
 }
 
 #[test]
 fn test_ingestion_roundtrip() {
-    let driver = get_driver();
-    let database = get_database(&driver);
+    let mut driver = get_driver();
+    let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     common::test_ingestion_roundtrip(&mut connection);
 }

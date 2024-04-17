@@ -75,11 +75,11 @@ pub trait Driver {
     type DatabaseType: Database;
 
     /// Allocate and initialize a new database without pre-init options.
-    fn new_database(&self) -> Result<Self::DatabaseType>;
+    fn new_database(&mut self) -> Result<Self::DatabaseType>;
 
     /// Allocate and initialize a new database with pre-init options.
     fn new_database_with_opts(
-        &self,
+        &mut self,
         opts: impl Iterator<Item = (OptionDatabase, OptionValue)>,
     ) -> Result<Self::DatabaseType>;
 }
@@ -95,11 +95,11 @@ pub trait Database: Optionable<Option = OptionDatabase> {
     type ConnectionType: Connection;
 
     /// Allocate and initialize a new connection without pre-init options.
-    fn new_connection(&self) -> Result<Self::ConnectionType>;
+    fn new_connection(&mut self) -> Result<Self::ConnectionType>;
 
     /// Allocate and initialize a new connection with pre-init options.
     fn new_connection_with_opts(
-        &self,
+        &mut self,
         opts: impl Iterator<Item = (options::OptionConnection, OptionValue)>,
     ) -> Result<Self::ConnectionType>;
 }
@@ -118,7 +118,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     type StatementType: Statement;
 
     /// Allocate and initialize a new statement.
-    fn new_statement(&self) -> Result<Self::StatementType>;
+    fn new_statement(&mut self) -> Result<Self::StatementType>;
 
     /// Cancel the in-progress operation on a connection.
     fn cancel(&self) -> Result<()>;

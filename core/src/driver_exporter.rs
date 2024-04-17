@@ -411,7 +411,7 @@ unsafe extern "C" fn database_init<DriverType: Driver + Default>(
     let exported = check_err!(database_private_data::<DriverType>(database), error);
     debug_assert!(exported.options.is_some() && exported.database.is_none());
 
-    let driver = DriverType::default();
+    let mut driver = DriverType::default();
     let options = exported.options.take().expect("Broken invariant");
     let database = driver.new_database_with_opts(options.into_iter());
     let database = check_err!(database, error);
@@ -652,7 +652,7 @@ unsafe extern "C" fn connection_init<DriverType: Driver + Default>(
 
     let connection = exported_database
         .database
-        .as_ref()
+        .as_mut()
         .expect("Broken invariant")
         .new_connection_with_opts(options.into_iter());
     let connection = check_err!(connection, error);
@@ -1146,7 +1146,7 @@ unsafe extern "C" fn statement_new<DriverType: Driver + Default>(
     let exported_connection = check_err!(connection_private_data::<DriverType>(connection), error);
     let inner_connection = exported_connection
         .connection
-        .as_ref()
+        .as_mut()
         .expect("Broken invariant");
 
     let statement = statement.as_mut().unwrap();
