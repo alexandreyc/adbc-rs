@@ -879,7 +879,7 @@ unsafe extern "C" fn connection_get_table_schema<DriverType: Driver + Default>(
 unsafe extern "C" fn connection_get_info<DriverType: Driver + Default + 'static>(
     connection: *mut FFI_AdbcConnection,
     info_codes: *const u32,
-    length: usize,
+    info_codes_length: usize,
     out: *mut FFI_ArrowArrayStream,
     error: *mut FFI_AdbcError,
 ) -> FFI_AdbcStatusCode {
@@ -891,7 +891,7 @@ unsafe extern "C" fn connection_get_info<DriverType: Driver + Default + 'static>
     let info_codes = if info_codes.is_null() {
         None
     } else {
-        let info_codes = std::slice::from_raw_parts(info_codes, length);
+        let info_codes = std::slice::from_raw_parts(info_codes, info_codes_length);
         let info_codes: Result<Vec<InfoCode>> =
             info_codes.iter().map(|c| InfoCode::try_from(*c)).collect();
         let info_codes = check_err!(info_codes, error);
