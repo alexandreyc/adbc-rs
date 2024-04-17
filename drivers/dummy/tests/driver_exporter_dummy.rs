@@ -351,8 +351,8 @@ fn test_connection_get_info() {
 
 #[test]
 fn test_connection_cancel() {
-    let (_, _, exported_connection, _) = get_exported();
-    let (_, _, native_connection, _) = get_native();
+    let (_, _, mut exported_connection, _) = get_exported();
+    let (_, _, mut native_connection, _) = get_native();
 
     let exported_error = exported_connection.cancel().unwrap_err();
     let native_error = native_connection.cancel().unwrap_err();
@@ -362,8 +362,8 @@ fn test_connection_cancel() {
 
 #[test]
 fn test_connection_commit_rollback() {
-    let (_, _, exported_connection, _) = get_exported();
-    let (_, _, native_connection, _) = get_native();
+    let (_, _, mut exported_connection, _) = get_exported();
+    let (_, _, mut native_connection, _) = get_native();
 
     exported_connection.commit().unwrap();
     exported_connection.rollback().unwrap();
@@ -529,8 +529,8 @@ fn test_statement_options() {
 
 #[test]
 fn test_statement_bind() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     let batch = sample_batch();
 
@@ -540,8 +540,8 @@ fn test_statement_bind() {
 
 #[test]
 fn test_statement_bind_stream() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     let batch = sample_batch();
     let reader = Box::new(SingleBatchReader::new(batch));
@@ -554,8 +554,8 @@ fn test_statement_bind_stream() {
 
 #[test]
 fn test_statement_cancel() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     exported_statement.cancel().unwrap();
     native_statement.cancel().unwrap();
@@ -563,8 +563,8 @@ fn test_statement_cancel() {
 
 #[test]
 fn test_statement_execute_query() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     let exported_data = concat_reader(exported_statement.execute().unwrap());
     let native_data = concat_reader(native_statement.execute().unwrap());
@@ -577,8 +577,8 @@ fn test_statement_execute_query() {
 
 #[test]
 fn test_statement_execute_schema() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     let exported_schema = exported_statement.execute_schema().unwrap();
     let native_schema = native_statement.execute_schema().unwrap();
@@ -587,8 +587,8 @@ fn test_statement_execute_schema() {
 
 #[test]
 fn test_statement_execute_partitions() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     let exported_result = exported_statement.execute_partitions().unwrap();
     let native_result = native_statement.execute_partitions().unwrap();
@@ -597,8 +597,8 @@ fn test_statement_execute_partitions() {
 
 #[test]
 fn test_statement_prepare() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     exported_statement.prepare().unwrap();
     native_statement.prepare().unwrap();
@@ -606,8 +606,8 @@ fn test_statement_prepare() {
 
 #[test]
 fn test_statement_set_sql_query() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     exported_statement
         .set_sql_query("select * from table")
@@ -619,8 +619,8 @@ fn test_statement_set_sql_query() {
 
 #[test]
 fn test_statement_set_substrait_plan() {
-    let (_, _, _, exported_statement) = get_exported();
-    let (_, _, _, native_statement) = get_native();
+    let (_, _, _, mut exported_statement) = get_exported();
+    let (_, _, _, mut native_statement) = get_native();
 
     exported_statement.set_substrait_plan(b"SCAN").unwrap();
     native_statement.set_substrait_plan(b"SCAN").unwrap();

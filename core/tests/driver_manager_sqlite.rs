@@ -98,7 +98,7 @@ fn test_connection_get_option() {
 fn test_connection_cancel() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
-    let connection = database.new_connection().unwrap();
+    let mut connection = database.new_connection().unwrap();
 
     let error = connection.cancel().unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
@@ -182,8 +182,8 @@ fn test_statement_prepare() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement_prepare(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement_prepare(&mut statement);
 }
 
 #[test]
@@ -191,8 +191,8 @@ fn test_statement_set_substrait_plan() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement_set_substrait_plan(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement_set_substrait_plan(&mut statement);
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn test_statement_get_parameters_schema() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
+    let mut statement = connection.new_statement().unwrap();
 
     let error = statement.get_parameters_schema().unwrap_err();
     assert_eq!(error.status, Status::InvalidState);
@@ -218,8 +218,8 @@ fn test_statement_execute() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement_execute(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement_execute(&mut statement);
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn test_statement_execute_schema() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
+    let mut statement = connection.new_statement().unwrap();
 
     let error = statement.execute_schema().unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
@@ -246,8 +246,8 @@ fn test_statement_execute_partitions() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement_execute_partitions(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement_execute_partitions(&mut statement);
 }
 
 #[test]
@@ -255,7 +255,7 @@ fn test_statement_cancel() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
+    let mut statement = connection.new_statement().unwrap();
 
     let error = statement.cancel().unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
@@ -266,8 +266,8 @@ fn test_statement_bind() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement_bind(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement_bind(&mut statement);
 }
 
 #[test]
@@ -275,8 +275,8 @@ fn test_statement_bind_stream() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
-    let statement = connection.new_statement().unwrap();
-    common::test_statement_bind_stream(&statement);
+    let mut statement = connection.new_statement().unwrap();
+    common::test_statement_bind_stream(&mut statement);
 }
 
 #[test]

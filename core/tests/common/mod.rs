@@ -206,7 +206,7 @@ pub fn test_connection_get_table_schema(connection: &mut ManagedConnection) {
         .set_option(OptionConnection::AutoCommit, "false".into())
         .unwrap();
 
-    let statement = connection.new_statement().unwrap();
+    let mut statement = connection.new_statement().unwrap();
     statement
         .set_sql_query(&format!("create table {TABLE_NAME}(a bigint, b bigint);"))
         .unwrap();
@@ -239,7 +239,7 @@ pub fn test_statement(statement: &mut ManagedStatement) {
         .unwrap_err();
 }
 
-pub fn test_statement_prepare(statement: &ManagedStatement) {
+pub fn test_statement_prepare(statement: &mut ManagedStatement) {
     let error = statement.prepare().unwrap_err();
     assert_eq!(error.status, Status::InvalidState);
 
@@ -247,12 +247,12 @@ pub fn test_statement_prepare(statement: &ManagedStatement) {
     statement.prepare().unwrap();
 }
 
-pub fn test_statement_set_substrait_plan(statement: &ManagedStatement) {
+pub fn test_statement_set_substrait_plan(statement: &mut ManagedStatement) {
     let error = statement.set_substrait_plan(b"").unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
 }
 
-pub fn test_statement_execute(statement: &ManagedStatement) {
+pub fn test_statement_execute(statement: &mut ManagedStatement) {
     assert!(statement.execute().is_err());
 
     statement.set_sql_query("select 42").unwrap();
@@ -262,7 +262,7 @@ pub fn test_statement_execute(statement: &ManagedStatement) {
 }
 
 pub fn test_statement_execute_update(connection: &mut ManagedConnection) {
-    let statement = connection.new_statement().unwrap();
+    let mut statement = connection.new_statement().unwrap();
 
     let error = statement.execute_update().unwrap_err();
     assert_eq!(error.status, Status::InvalidState);
@@ -280,19 +280,19 @@ pub fn test_statement_execute_update(connection: &mut ManagedConnection) {
     connection.rollback().unwrap();
 }
 
-pub fn test_statement_execute_partitions(statement: &ManagedStatement) {
+pub fn test_statement_execute_partitions(statement: &mut ManagedStatement) {
     let error = statement.execute_partitions().unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
 }
 
-pub fn test_statement_bind(statement: &ManagedStatement) {
+pub fn test_statement_bind(statement: &mut ManagedStatement) {
     let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, true)]));
     let columns: Vec<Arc<dyn Array>> = vec![Arc::new(Int64Array::from(vec![1, 2, 3]))];
     let batch = RecordBatch::try_new(schema, columns).unwrap();
     statement.bind(batch).unwrap();
 }
 
-pub fn test_statement_bind_stream(statement: &ManagedStatement) {
+pub fn test_statement_bind_stream(statement: &mut ManagedStatement) {
     let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Int64, true)]));
     let columns: Vec<Arc<dyn Array>> = vec![Arc::new(Int64Array::from(vec![1, 2, 3]))];
     let batch = RecordBatch::try_new(schema, columns).unwrap();

@@ -645,7 +645,7 @@ impl Connection for ManagedConnection {
         })
     }
 
-    fn cancel(&self) -> Result<()> {
+    fn cancel(&mut self) -> Result<()> {
         if let AdbcVersion::V100 = self.inner.version {
             return Err(Error::with_message_and_status(
                 ERR_CANCEL_UNSUPPORTED,
@@ -659,7 +659,7 @@ impl Connection for ManagedConnection {
         check_status(status, error)
     }
 
-    fn commit(&self) -> Result<()> {
+    fn commit(&mut self) -> Result<()> {
         let driver = &self.inner.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, ConnectionCommit);
@@ -667,7 +667,7 @@ impl Connection for ManagedConnection {
         check_status(status, error)
     }
 
-    fn rollback(&self) -> Result<()> {
+    fn rollback(&mut self) -> Result<()> {
         let driver = &self.inner.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, ConnectionRollback);
@@ -948,7 +948,7 @@ pub struct ManagedStatement {
 }
 
 impl Statement for ManagedStatement {
-    fn bind(&self, batch: RecordBatch) -> Result<()> {
+    fn bind(&mut self, batch: RecordBatch) -> Result<()> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementBind);
@@ -966,7 +966,7 @@ impl Statement for ManagedStatement {
         Ok(())
     }
 
-    fn bind_stream(&self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()> {
+    fn bind_stream(&mut self, reader: Box<dyn RecordBatchReader + Send>) -> Result<()> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementBindStream);
@@ -982,7 +982,7 @@ impl Statement for ManagedStatement {
         Ok(())
     }
 
-    fn cancel(&self) -> Result<()> {
+    fn cancel(&mut self) -> Result<()> {
         if let AdbcVersion::V100 = self.version {
             return Err(Error::with_message_and_status(
                 ERR_CANCEL_UNSUPPORTED,
@@ -996,7 +996,7 @@ impl Statement for ManagedStatement {
         check_status(status, error)
     }
 
-    fn execute(&self) -> Result<impl RecordBatchReader> {
+    fn execute(&mut self) -> Result<impl RecordBatchReader> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementExecuteQuery);
@@ -1014,7 +1014,7 @@ impl Statement for ManagedStatement {
         Ok(reader)
     }
 
-    fn execute_schema(&self) -> Result<arrow::datatypes::Schema> {
+    fn execute_schema(&mut self) -> Result<arrow::datatypes::Schema> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementExecuteSchema);
@@ -1030,7 +1030,7 @@ impl Statement for ManagedStatement {
         Ok((&schema).try_into()?)
     }
 
-    fn execute_update(&self) -> Result<Option<i64>> {
+    fn execute_update(&mut self) -> Result<Option<i64>> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementExecuteQuery);
@@ -1052,7 +1052,7 @@ impl Statement for ManagedStatement {
         Ok(rows_affected)
     }
 
-    fn execute_partitions(&self) -> Result<PartitionedResult> {
+    fn execute_partitions(&mut self) -> Result<PartitionedResult> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementExecutePartitions);
@@ -1095,7 +1095,7 @@ impl Statement for ManagedStatement {
         Ok((&schema).try_into()?)
     }
 
-    fn prepare(&self) -> Result<()> {
+    fn prepare(&mut self) -> Result<()> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementPrepare);
@@ -1104,7 +1104,7 @@ impl Statement for ManagedStatement {
         Ok(())
     }
 
-    fn set_sql_query(&self, query: &str) -> Result<()> {
+    fn set_sql_query(&mut self, query: &str) -> Result<()> {
         let query = CString::new(query)?;
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
@@ -1120,7 +1120,7 @@ impl Statement for ManagedStatement {
         Ok(())
     }
 
-    fn set_substrait_plan(&self, plan: &[u8]) -> Result<()> {
+    fn set_substrait_plan(&mut self, plan: &[u8]) -> Result<()> {
         let driver = &self.connection.database.driver.driver;
         let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementSetSubstraitPlan);
