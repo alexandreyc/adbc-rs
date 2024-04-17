@@ -80,6 +80,7 @@
 //! ```
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::ffi::{CStr, CString};
 use std::ops::DerefMut;
 use std::os::raw::{c_char, c_void};
@@ -93,7 +94,7 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::{
     error::Status,
-    options::{self, AdbcVersion, OptionValue},
+    options::{self, AdbcVersion, InfoCode, OptionValue},
     Error, PartitionedResult, Result,
 };
 use crate::{ffi, ffi::types::driver_method, Optionable};
@@ -674,10 +675,7 @@ impl Connection for ManagedConnection {
         check_status(status, error)
     }
 
-    fn get_info(
-        &self,
-        codes: Option<Vec<crate::options::InfoCode>>,
-    ) -> Result<impl RecordBatchReader> {
+    fn get_info(&self, codes: Option<HashSet<InfoCode>>) -> Result<impl RecordBatchReader> {
         let mut stream = FFI_ArrowArrayStream::empty();
         let codes: Option<Vec<u32>> =
             codes.map(|codes| codes.iter().map(|code| code.into()).collect());

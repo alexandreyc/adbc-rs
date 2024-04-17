@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::{CStr, CString};
 use std::hash::Hash;
 use std::os::raw::{c_char, c_int, c_void};
@@ -892,7 +892,7 @@ unsafe extern "C" fn connection_get_info<DriverType: Driver + Default + 'static>
         None
     } else {
         let info_codes = std::slice::from_raw_parts(info_codes, info_codes_length);
-        let info_codes: Result<Vec<InfoCode>> =
+        let info_codes: Result<HashSet<InfoCode>> =
             info_codes.iter().map(|c| InfoCode::try_from(*c)).collect();
         let info_codes = check_err!(info_codes, error);
         Some(info_codes)

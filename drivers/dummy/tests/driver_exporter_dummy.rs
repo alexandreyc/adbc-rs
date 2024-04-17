@@ -333,18 +333,16 @@ fn test_connection_get_info() {
 
     let exported_info = concat_reader(
         exported_connection
-            .get_info(Some(vec![
-                InfoCode::DriverAdbcVersion,
-                InfoCode::DriverName,
-            ]))
+            .get_info(Some(
+                [InfoCode::DriverAdbcVersion, InfoCode::DriverName].into(),
+            ))
             .unwrap(),
     );
     let native_info = concat_reader(
         native_connection
-            .get_info(Some(vec![
-                InfoCode::DriverAdbcVersion,
-                InfoCode::DriverName,
-            ]))
+            .get_info(Some(
+                [InfoCode::DriverAdbcVersion, InfoCode::DriverName].into(),
+            ))
             .unwrap(),
     );
     assert_eq!(exported_info.schema(), *schemas::GET_INFO_SCHEMA.deref());

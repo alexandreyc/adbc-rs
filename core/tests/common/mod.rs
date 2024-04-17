@@ -140,12 +140,15 @@ pub fn test_connection_get_info(connection: &ManagedConnection, actual_num_info:
 
     let info = concat_reader(
         connection
-            .get_info(Some(vec![
-                InfoCode::VendorName,
-                InfoCode::DriverVersion,
-                InfoCode::DriverName,
-                InfoCode::VendorVersion,
-            ]))
+            .get_info(Some(
+                [
+                    InfoCode::VendorName,
+                    InfoCode::DriverVersion,
+                    InfoCode::DriverName,
+                    InfoCode::VendorVersion,
+                ]
+                .into(),
+            ))
             .unwrap(),
     );
     assert_eq!(info.num_columns(), 2);
