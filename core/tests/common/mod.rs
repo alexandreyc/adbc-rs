@@ -69,22 +69,22 @@ pub fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
 
 pub fn test_driver(driver: &mut DriverManager, uri: &str) {
     let opts = [(OptionDatabase::Uri, uri.into())];
-    driver.new_database_with_opts(opts.into_iter()).unwrap();
+    driver.new_database_with_opts(opts).unwrap();
 
     // Unknown database option.
     let opts = [(OptionDatabase::Other("unknown".into()), "".into())];
-    assert!(driver.new_database_with_opts(opts.into_iter()).is_err());
+    assert!(driver.new_database_with_opts(opts).is_err());
 }
 
 pub fn test_database(database: &mut ManagedDatabase) {
     assert!(database.new_connection().is_ok());
 
     let opts = [(OptionConnection::AutoCommit, "true".into())];
-    database.new_connection_with_opts(opts.into_iter()).unwrap();
+    database.new_connection_with_opts(opts).unwrap();
 
     // Unknown connection option.
     let opts = [(OptionConnection::Other("unknown".into()), "".into())];
-    assert!(database.new_connection_with_opts(opts.into_iter()).is_err());
+    assert!(database.new_connection_with_opts(opts).is_err());
 }
 
 pub fn test_connection(connection: &mut ManagedConnection) {

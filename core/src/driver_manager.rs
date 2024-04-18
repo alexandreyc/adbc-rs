@@ -45,7 +45,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let opts = [(OptionDatabase::Uri, ":memory:".into())];
 //! let mut driver = DriverManager::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100)?;
-//! let mut database = driver.new_database_with_opts(opts.into_iter())?;
+//! let mut database = driver.new_database_with_opts(opts)?;
 //! let mut connection = database.new_connection()?;
 //! let mut statement = connection.new_statement()?;
 //!
@@ -191,12 +191,12 @@ impl Driver for DriverManager {
 
     fn new_database(&mut self) -> Result<Self::DatabaseType> {
         let opts: [(<Self::DatabaseType as Optionable>::Option, OptionValue); 0] = [];
-        self.new_database_with_opts(opts.into_iter())
+        self.new_database_with_opts(opts)
     }
 
     fn new_database_with_opts(
         &mut self,
-        opts: impl Iterator<Item = (<Self::DatabaseType as Optionable>::Option, OptionValue)>,
+        opts: impl IntoIterator<Item = (<Self::DatabaseType as Optionable>::Option, OptionValue)>,
     ) -> Result<Self::DatabaseType> {
         let driver = &self.inner.driver;
         let mut database = ffi::FFI_AdbcDatabase::default();
@@ -436,12 +436,12 @@ impl Database for ManagedDatabase {
 
     fn new_connection(&mut self) -> Result<Self::ConnectionType> {
         let opts: [(<Self::ConnectionType as Optionable>::Option, OptionValue); 0] = [];
-        self.new_connection_with_opts(opts.into_iter())
+        self.new_connection_with_opts(opts)
     }
 
     fn new_connection_with_opts(
         &mut self,
-        opts: impl Iterator<Item = (<Self::ConnectionType as Optionable>::Option, OptionValue)>,
+        opts: impl IntoIterator<Item = (<Self::ConnectionType as Optionable>::Option, OptionValue)>,
     ) -> Result<Self::ConnectionType> {
         let driver = &self.inner.driver.driver;
         let mut database = self.inner.database.lock().unwrap();

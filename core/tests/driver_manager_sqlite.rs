@@ -17,7 +17,7 @@ fn get_driver() -> DriverManager {
 
 fn get_database(driver: &mut DriverManager) -> ManagedDatabase {
     let opts = [(OptionDatabase::Uri, URI.into())];
-    driver.new_database_with_opts(opts.into_iter()).unwrap()
+    driver.new_database_with_opts(opts).unwrap()
 }
 
 #[test]

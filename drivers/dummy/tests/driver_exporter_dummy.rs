@@ -90,7 +90,7 @@ fn test_database_options() {
         ),
     ];
 
-    let mut database = driver.new_database_with_opts(options.into_iter()).unwrap();
+    let mut database = driver.new_database_with_opts(options).unwrap();
 
     let value = database
         .get_option_string(OptionDatabase::Username)
@@ -196,9 +196,7 @@ fn test_connection_options() {
             OPTION_BYTES_LONG.into(),
         ),
     ];
-    let mut connection = database
-        .new_connection_with_opts(options.into_iter())
-        .unwrap();
+    let mut connection = database.new_connection_with_opts(options).unwrap();
 
     let value = connection
         .get_option_string(OptionConnection::CurrentCatalog)
