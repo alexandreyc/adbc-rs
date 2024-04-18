@@ -93,9 +93,10 @@ use arrow::ffi::{to_ffi, FFI_ArrowSchema};
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::{
-    error::Status,
+    error::{Error, Status},
+    ffi::check_status,
     options::{self, AdbcVersion, InfoCode, OptionValue},
-    Error, PartitionedResult, Result,
+    PartitionedResult, Result,
 };
 use crate::{ffi, ffi::types::driver_method, Optionable};
 use crate::{Connection, Database, Driver, Statement};
@@ -105,16 +106,14 @@ const ERR_CANCEL_UNSUPPORTED: &str =
     "Canceling connection or statement is not supported with ADBC 1.0.0";
 const ERR_STATISTICS_UNSUPPORTED: &str = "Statistics are not supported with ADBC 1.0.0";
 
-pub(crate) fn check_status(
-    status: ffi::FFI_AdbcStatusCode,
-    error: ffi::FFI_AdbcError,
-) -> Result<()> {
-    match status {
-        ffi::constants::ADBC_STATUS_OK => Ok(()),
-        _ => {
-            let mut error: Error = error.try_into()?;
-            error.status = status.into();
-            Err(error)
+impl From<libloading::Error> for Error {
+    fn from(value: libloading::Error) -> Self {
+        Self {
+            message: format!("Error with dynamic library: {value}"),
+            status: Status::Internal,
+            vendor_code: 0,
+            sqlstate: [0; 5],
+            details: None,
         }
     }
 }

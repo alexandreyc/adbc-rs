@@ -34,6 +34,7 @@
 //! or by dynamically finding such a function in a dynamic library (run-time).
 
 pub mod driver_exporter;
+#[cfg(feature = "driver_manager")]
 pub mod driver_manager;
 pub mod error;
 pub mod ffi;
@@ -47,7 +48,7 @@ use std::collections::HashSet;
 use arrow::datatypes::Schema;
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
-use error::{Error, Result};
+use error::Result;
 use options::{OptionConnection, OptionDatabase, OptionStatement, OptionValue};
 
 /// Ability to configure an object by setting/getting options.

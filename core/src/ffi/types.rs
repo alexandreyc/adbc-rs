@@ -6,7 +6,6 @@ use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
 
 use super::methods;
-use crate::driver_manager::check_status;
 use crate::{error, ffi, Partitions};
 
 pub type FFI_AdbcStatusCode = u8;
@@ -604,7 +603,7 @@ impl Drop for FFI_AdbcDriver {
         if let Some(release) = self.release {
             let mut error = ffi::FFI_AdbcError::default();
             let status = unsafe { release(self, &mut error) };
-            if let Err(err) = check_status(status, error) {
+            if let Err(err) = ffi::check_status(status, error) {
                 panic!("unable to drop driver: {:?}", err);
             }
         }
