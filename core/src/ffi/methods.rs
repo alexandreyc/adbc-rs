@@ -5,8 +5,10 @@ use std::os::raw::{c_char, c_int};
 use arrow::ffi::{FFI_ArrowArray, FFI_ArrowSchema};
 use arrow::ffi_stream::FFI_ArrowArrayStream;
 
-use super::*;
-use crate::ffi::constants::ADBC_STATUS_NOT_IMPLEMENTED;
+use super::{
+    constants::ADBC_STATUS_NOT_IMPLEMENTED, FFI_AdbcConnection, FFI_AdbcDatabase, FFI_AdbcError,
+    FFI_AdbcErrorDetail, FFI_AdbcPartitions, FFI_AdbcStatement, FFI_AdbcStatusCode,
+};
 
 macro_rules! method {
     ($func_name:ident ; $type_name:ident ; $return_type:ty ; $return_value:expr ; $( $arg:ty ),*) => {

@@ -5,8 +5,11 @@ use std::mem::ManuallyDrop;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr::{null, null_mut};
 
-use super::methods;
-use crate::{error, ffi, Partitions};
+use super::{check_status, constants, methods};
+use crate::{
+    error::{Error, Status},
+    Partitions,
+};
 
 pub type FFI_AdbcStatusCode = u8;
 
@@ -186,69 +189,69 @@ macro_rules! driver_method {
 
 pub(crate) use driver_method;
 
-impl From<FFI_AdbcStatusCode> for error::Status {
+impl From<FFI_AdbcStatusCode> for Status {
     fn from(value: FFI_AdbcStatusCode) -> Self {
         match value {
-            ffi::constants::ADBC_STATUS_OK => error::Status::Ok,
-            ffi::constants::ADBC_STATUS_UNKNOWN => error::Status::Unknown,
-            ffi::constants::ADBC_STATUS_NOT_IMPLEMENTED => error::Status::NotImplemented,
-            ffi::constants::ADBC_STATUS_NOT_FOUND => error::Status::NotFound,
-            ffi::constants::ADBC_STATUS_ALREADY_EXISTS => error::Status::AlreadyExists,
-            ffi::constants::ADBC_STATUS_INVALID_ARGUMENT => error::Status::InvalidArguments,
-            ffi::constants::ADBC_STATUS_INVALID_STATE => error::Status::InvalidState,
-            ffi::constants::ADBC_STATUS_INVALID_DATA => error::Status::InvalidData,
-            ffi::constants::ADBC_STATUS_INTEGRITY => error::Status::Integrity,
-            ffi::constants::ADBC_STATUS_INTERNAL => error::Status::Internal,
-            ffi::constants::ADBC_STATUS_IO => error::Status::IO,
-            ffi::constants::ADBC_STATUS_CANCELLED => error::Status::Cancelled,
-            ffi::constants::ADBC_STATUS_TIMEOUT => error::Status::Timeout,
-            ffi::constants::ADBC_STATUS_UNAUTHENTICATED => error::Status::Unauthenticated,
-            ffi::constants::ADBC_STATUS_UNAUTHORIZED => error::Status::Unauthorized,
+            constants::ADBC_STATUS_OK => Status::Ok,
+            constants::ADBC_STATUS_UNKNOWN => Status::Unknown,
+            constants::ADBC_STATUS_NOT_IMPLEMENTED => Status::NotImplemented,
+            constants::ADBC_STATUS_NOT_FOUND => Status::NotFound,
+            constants::ADBC_STATUS_ALREADY_EXISTS => Status::AlreadyExists,
+            constants::ADBC_STATUS_INVALID_ARGUMENT => Status::InvalidArguments,
+            constants::ADBC_STATUS_INVALID_STATE => Status::InvalidState,
+            constants::ADBC_STATUS_INVALID_DATA => Status::InvalidData,
+            constants::ADBC_STATUS_INTEGRITY => Status::Integrity,
+            constants::ADBC_STATUS_INTERNAL => Status::Internal,
+            constants::ADBC_STATUS_IO => Status::IO,
+            constants::ADBC_STATUS_CANCELLED => Status::Cancelled,
+            constants::ADBC_STATUS_TIMEOUT => Status::Timeout,
+            constants::ADBC_STATUS_UNAUTHENTICATED => Status::Unauthenticated,
+            constants::ADBC_STATUS_UNAUTHORIZED => Status::Unauthorized,
             _ => panic!("Invalid ADBC status code value: {value}"),
         }
     }
 }
 
-impl From<error::Status> for FFI_AdbcStatusCode {
-    fn from(value: error::Status) -> Self {
+impl From<Status> for FFI_AdbcStatusCode {
+    fn from(value: Status) -> Self {
         match value {
-            error::Status::Ok => ffi::constants::ADBC_STATUS_OK,
-            error::Status::Unknown => ffi::constants::ADBC_STATUS_UNKNOWN,
-            error::Status::NotImplemented => ffi::constants::ADBC_STATUS_NOT_IMPLEMENTED,
-            error::Status::NotFound => ffi::constants::ADBC_STATUS_NOT_FOUND,
-            error::Status::AlreadyExists => ffi::constants::ADBC_STATUS_ALREADY_EXISTS,
-            error::Status::InvalidArguments => ffi::constants::ADBC_STATUS_INVALID_ARGUMENT,
-            error::Status::InvalidState => ffi::constants::ADBC_STATUS_INVALID_STATE,
-            error::Status::InvalidData => ffi::constants::ADBC_STATUS_INVALID_DATA,
-            error::Status::Integrity => ffi::constants::ADBC_STATUS_INTEGRITY,
-            error::Status::Internal => ffi::constants::ADBC_STATUS_INTERNAL,
-            error::Status::IO => ffi::constants::ADBC_STATUS_IO,
-            error::Status::Cancelled => ffi::constants::ADBC_STATUS_CANCELLED,
-            error::Status::Timeout => ffi::constants::ADBC_STATUS_TIMEOUT,
-            error::Status::Unauthenticated => ffi::constants::ADBC_STATUS_UNAUTHENTICATED,
-            error::Status::Unauthorized => ffi::constants::ADBC_STATUS_UNAUTHORIZED,
+            Status::Ok => constants::ADBC_STATUS_OK,
+            Status::Unknown => constants::ADBC_STATUS_UNKNOWN,
+            Status::NotImplemented => constants::ADBC_STATUS_NOT_IMPLEMENTED,
+            Status::NotFound => constants::ADBC_STATUS_NOT_FOUND,
+            Status::AlreadyExists => constants::ADBC_STATUS_ALREADY_EXISTS,
+            Status::InvalidArguments => constants::ADBC_STATUS_INVALID_ARGUMENT,
+            Status::InvalidState => constants::ADBC_STATUS_INVALID_STATE,
+            Status::InvalidData => constants::ADBC_STATUS_INVALID_DATA,
+            Status::Integrity => constants::ADBC_STATUS_INTEGRITY,
+            Status::Internal => constants::ADBC_STATUS_INTERNAL,
+            Status::IO => constants::ADBC_STATUS_IO,
+            Status::Cancelled => constants::ADBC_STATUS_CANCELLED,
+            Status::Timeout => constants::ADBC_STATUS_TIMEOUT,
+            Status::Unauthenticated => constants::ADBC_STATUS_UNAUTHENTICATED,
+            Status::Unauthorized => constants::ADBC_STATUS_UNAUTHORIZED,
         }
     }
 }
 
-impl From<&error::Status> for FFI_AdbcStatusCode {
-    fn from(value: &error::Status) -> Self {
+impl From<&Status> for FFI_AdbcStatusCode {
+    fn from(value: &Status) -> Self {
         match value {
-            error::Status::Ok => ffi::constants::ADBC_STATUS_OK,
-            error::Status::Unknown => ffi::constants::ADBC_STATUS_UNKNOWN,
-            error::Status::NotImplemented => ffi::constants::ADBC_STATUS_NOT_IMPLEMENTED,
-            error::Status::NotFound => ffi::constants::ADBC_STATUS_NOT_FOUND,
-            error::Status::AlreadyExists => ffi::constants::ADBC_STATUS_ALREADY_EXISTS,
-            error::Status::InvalidArguments => ffi::constants::ADBC_STATUS_INVALID_ARGUMENT,
-            error::Status::InvalidState => ffi::constants::ADBC_STATUS_INVALID_STATE,
-            error::Status::InvalidData => ffi::constants::ADBC_STATUS_INVALID_DATA,
-            error::Status::Integrity => ffi::constants::ADBC_STATUS_INTEGRITY,
-            error::Status::Internal => ffi::constants::ADBC_STATUS_INTERNAL,
-            error::Status::IO => ffi::constants::ADBC_STATUS_IO,
-            error::Status::Cancelled => ffi::constants::ADBC_STATUS_CANCELLED,
-            error::Status::Timeout => ffi::constants::ADBC_STATUS_TIMEOUT,
-            error::Status::Unauthenticated => ffi::constants::ADBC_STATUS_UNAUTHENTICATED,
-            error::Status::Unauthorized => ffi::constants::ADBC_STATUS_UNAUTHORIZED,
+            Status::Ok => constants::ADBC_STATUS_OK,
+            Status::Unknown => constants::ADBC_STATUS_UNKNOWN,
+            Status::NotImplemented => constants::ADBC_STATUS_NOT_IMPLEMENTED,
+            Status::NotFound => constants::ADBC_STATUS_NOT_FOUND,
+            Status::AlreadyExists => constants::ADBC_STATUS_ALREADY_EXISTS,
+            Status::InvalidArguments => constants::ADBC_STATUS_INVALID_ARGUMENT,
+            Status::InvalidState => constants::ADBC_STATUS_INVALID_STATE,
+            Status::InvalidData => constants::ADBC_STATUS_INVALID_DATA,
+            Status::Integrity => constants::ADBC_STATUS_INTEGRITY,
+            Status::Internal => constants::ADBC_STATUS_INTERNAL,
+            Status::IO => constants::ADBC_STATUS_IO,
+            Status::Cancelled => constants::ADBC_STATUS_CANCELLED,
+            Status::Timeout => constants::ADBC_STATUS_TIMEOUT,
+            Status::Unauthenticated => constants::ADBC_STATUS_UNAUTHENTICATED,
+            Status::Unauthorized => constants::ADBC_STATUS_UNAUTHORIZED,
         }
     }
 }
@@ -417,7 +420,7 @@ impl Default for FFI_AdbcError {
     fn default() -> Self {
         Self {
             message: null_mut(),
-            vendor_code: ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA,
+            vendor_code: constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA,
             sqlstate: [0; 5],
             release: None,
             private_data: null_mut(),
@@ -484,8 +487,8 @@ impl FFI_AdbcError {
     }
 }
 
-impl TryFrom<&FFI_AdbcError> for error::Error {
-    type Error = error::Error;
+impl TryFrom<&FFI_AdbcError> for Error {
+    type Error = Error;
 
     fn try_from(value: &FFI_AdbcError) -> Result<Self, Self::Error> {
         let message = match value.message.is_null() {
@@ -497,15 +500,15 @@ impl TryFrom<&FFI_AdbcError> for error::Error {
             }
         };
 
-        let mut error = error::Error {
+        let mut error = Error {
             message,
-            status: error::Status::Unknown,
+            status: Status::Unknown,
             vendor_code: value.vendor_code,
             sqlstate: value.sqlstate,
             details: None,
         };
 
-        if value.vendor_code == ffi::constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA {
+        if value.vendor_code == constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA {
             if let Some(driver) = unsafe { value.private_driver.as_ref() } {
                 let get_detail_count = driver_method!(driver, ErrorGetDetailCount);
                 let get_detail = driver_method!(driver, ErrorGetDetail);
@@ -527,8 +530,8 @@ impl TryFrom<&FFI_AdbcError> for error::Error {
     }
 }
 
-impl TryFrom<FFI_AdbcError> for error::Error {
-    type Error = error::Error;
+impl TryFrom<FFI_AdbcError> for Error {
+    type Error = Error;
 
     fn try_from(value: FFI_AdbcError) -> Result<Self, Self::Error> {
         (&value).try_into()
@@ -541,10 +544,10 @@ pub(crate) struct ErrorPrivateData {
     pub(crate) values: Vec<Vec<u8>>,
 }
 
-impl TryFrom<error::Error> for FFI_AdbcError {
-    type Error = error::Error;
+impl TryFrom<Error> for FFI_AdbcError {
+    type Error = Error;
 
-    fn try_from(mut value: error::Error) -> Result<Self, Self::Error> {
+    fn try_from(mut value: Error) -> Result<Self, Self::Error> {
         let message = CString::new(value.message)?;
 
         let private_data = match value.details.take() {
@@ -601,9 +604,9 @@ impl Drop for FFI_AdbcError {
 impl Drop for FFI_AdbcDriver {
     fn drop(&mut self) {
         if let Some(release) = self.release {
-            let mut error = ffi::FFI_AdbcError::default();
+            let mut error = FFI_AdbcError::default();
             let status = unsafe { release(self, &mut error) };
-            if let Err(err) = ffi::check_status(status, error) {
+            if let Err(err) = check_status(status, error) {
                 panic!("unable to drop driver: {:?}", err);
             }
         }
