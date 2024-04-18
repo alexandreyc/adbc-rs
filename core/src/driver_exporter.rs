@@ -15,7 +15,7 @@ use crate::ffi::{
     FFI_AdbcErrorDetail, FFI_AdbcPartitions, FFI_AdbcStatement, FFI_AdbcStatusCode,
 };
 use crate::options::{InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionValue};
-use crate::{check_err, Connection, Database, Driver, Optionable, Statement};
+use crate::{Connection, Database, Driver, Optionable, Statement};
 
 // Invariant: options.is_none() XOR database.is_none()
 struct ExportedDatabase<DriverType: Driver + Default> {
@@ -166,7 +166,6 @@ macro_rules! check_err {
 ///
 /// If null, an error is returned from the enclosing function, otherwise this is
 /// a no-op.
-#[macro_export]
 macro_rules! check_not_null {
     ($ptr:ident, $err_out:expr) => {
         let res = if $ptr.is_null() {
