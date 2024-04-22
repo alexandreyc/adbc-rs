@@ -13,7 +13,7 @@ pub(crate) fn check_status(status: FFI_AdbcStatusCode, error: FFI_AdbcError) -> 
         constants::ADBC_STATUS_OK => Ok(()),
         _ => {
             let mut error: Error = error.try_into()?;
-            error.status = status.into();
+            error.status = status.try_into()?;
             Err(error)
         }
     }

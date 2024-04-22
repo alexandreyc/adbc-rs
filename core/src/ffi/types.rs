@@ -112,16 +112,13 @@ pub struct FFI_AdbcDriver {
     /// This field is NULL if the driver is unintialized/freed (but
     /// it need not have a value even if the driver is initialized).
     pub(crate) private_manager: *const c_void,
-
     pub(crate) release: Option<
         unsafe extern "C" fn(driver: *mut Self, error: *mut FFI_AdbcError) -> FFI_AdbcStatusCode,
     >,
-
     pub(crate) DatabaseInit: Option<methods::FuncDatabaseInit>,
     pub(crate) DatabaseNew: Option<methods::FuncDatabaseNew>,
     pub(crate) DatabaseSetOption: Option<methods::FuncDatabaseSetOption>,
     pub(crate) DatabaseRelease: Option<methods::FuncDatabaseRelease>,
-
     pub(crate) ConnectionCommit: Option<methods::FuncConnectionCommit>,
     pub(crate) ConnectionGetInfo: Option<methods::FuncConnectionGetInfo>,
     pub(crate) ConnectionGetObjects: Option<methods::FuncConnectionGetObjects>,
@@ -133,7 +130,6 @@ pub struct FFI_AdbcDriver {
     pub(crate) ConnectionReadPartition: Option<methods::FuncConnectionReadPartition>,
     pub(crate) ConnectionRelease: Option<methods::FuncConnectionRelease>,
     pub(crate) ConnectionRollback: Option<methods::FuncConnectionRollback>,
-
     pub(crate) StatementBind: Option<methods::FuncStatementBind>,
     pub(crate) StatementBindStream: Option<methods::FuncStatementBindStream>,
     pub(crate) StatementExecuteQuery: Option<methods::FuncStatementExecuteQuery>,
@@ -145,11 +141,9 @@ pub struct FFI_AdbcDriver {
     pub(crate) StatementSetOption: Option<methods::FuncStatementSetOption>,
     pub(crate) StatementSetSqlQuery: Option<methods::FuncStatementSetSqlQuery>,
     pub(crate) StatementSetSubstraitPlan: Option<methods::FuncStatementSetSubstraitPlan>,
-
     pub(crate) ErrorGetDetailCount: Option<methods::FuncErrorGetDetailCount>,
     pub(crate) ErrorGetDetail: Option<methods::FuncErrorGetDetail>,
     pub(crate) ErrorFromArrayStream: Option<methods::FuncErrorFromArrayStream>,
-
     pub(crate) DatabaseGetOption: Option<methods::FuncDatabaseGetOption>,
     pub(crate) DatabaseGetOptionBytes: Option<methods::FuncDatabaseGetOptionBytes>,
     pub(crate) DatabaseGetOptionDouble: Option<methods::FuncDatabaseGetOptionDouble>,
@@ -189,25 +183,30 @@ macro_rules! driver_method {
 
 pub(crate) use driver_method;
 
-impl From<FFI_AdbcStatusCode> for Status {
-    fn from(value: FFI_AdbcStatusCode) -> Self {
+impl TryFrom<FFI_AdbcStatusCode> for Status {
+    type Error = Error;
+
+    fn try_from(value: FFI_AdbcStatusCode) -> Result<Self, Error> {
         match value {
-            constants::ADBC_STATUS_OK => Status::Ok,
-            constants::ADBC_STATUS_UNKNOWN => Status::Unknown,
-            constants::ADBC_STATUS_NOT_IMPLEMENTED => Status::NotImplemented,
-            constants::ADBC_STATUS_NOT_FOUND => Status::NotFound,
-            constants::ADBC_STATUS_ALREADY_EXISTS => Status::AlreadyExists,
-            constants::ADBC_STATUS_INVALID_ARGUMENT => Status::InvalidArguments,
-            constants::ADBC_STATUS_INVALID_STATE => Status::InvalidState,
-            constants::ADBC_STATUS_INVALID_DATA => Status::InvalidData,
-            constants::ADBC_STATUS_INTEGRITY => Status::Integrity,
-            constants::ADBC_STATUS_INTERNAL => Status::Internal,
-            constants::ADBC_STATUS_IO => Status::IO,
-            constants::ADBC_STATUS_CANCELLED => Status::Cancelled,
-            constants::ADBC_STATUS_TIMEOUT => Status::Timeout,
-            constants::ADBC_STATUS_UNAUTHENTICATED => Status::Unauthenticated,
-            constants::ADBC_STATUS_UNAUTHORIZED => Status::Unauthorized,
-            _ => panic!("Invalid ADBC status code value: {value}"),
+            constants::ADBC_STATUS_OK => Ok(Status::Ok),
+            constants::ADBC_STATUS_UNKNOWN => Ok(Status::Unknown),
+            constants::ADBC_STATUS_NOT_IMPLEMENTED => Ok(Status::NotImplemented),
+            constants::ADBC_STATUS_NOT_FOUND => Ok(Status::NotFound),
+            constants::ADBC_STATUS_ALREADY_EXISTS => Ok(Status::AlreadyExists),
+            constants::ADBC_STATUS_INVALID_ARGUMENT => Ok(Status::InvalidArguments),
+            constants::ADBC_STATUS_INVALID_STATE => Ok(Status::InvalidState),
+            constants::ADBC_STATUS_INVALID_DATA => Ok(Status::InvalidData),
+            constants::ADBC_STATUS_INTEGRITY => Ok(Status::Integrity),
+            constants::ADBC_STATUS_INTERNAL => Ok(Status::Internal),
+            constants::ADBC_STATUS_IO => Ok(Status::IO),
+            constants::ADBC_STATUS_CANCELLED => Ok(Status::Cancelled),
+            constants::ADBC_STATUS_TIMEOUT => Ok(Status::Timeout),
+            constants::ADBC_STATUS_UNAUTHENTICATED => Ok(Status::Unauthenticated),
+            constants::ADBC_STATUS_UNAUTHORIZED => Ok(Status::Unauthorized),
+            v => Err(Error::with_message_and_status(
+                format!("Unknown status code: {v}"),
+                Status::InvalidData,
+            )),
         }
     }
 }
@@ -607,7 +606,7 @@ impl Drop for FFI_AdbcDriver {
             let mut error = FFI_AdbcError::default();
             let status = unsafe { release(self, &mut error) };
             if let Err(err) = check_status(status, error) {
-                panic!("unable to drop driver: {:?}", err);
+                panic!("Unable to drop FFI_AdbcDriver: {:?}", err);
             }
         }
     }
