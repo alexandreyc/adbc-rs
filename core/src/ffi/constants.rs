@@ -76,29 +76,16 @@ pub const ADBC_OPTION_ISOLATION_LEVEL_LINEARIZABLE: &str =
     "adbc.connection.transaction.isolation.linearizable";
 
 pub const ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY: i16 = 0;
-// #define ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_NAME "adbc.statistic.byte_width"
-
+pub const ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_NAME: &str = "adbc.statistic.byte_width";
 pub const ADBC_STATISTIC_DISTINCT_COUNT_KEY: i16 = 1;
-// #define ADBC_STATISTIC_DISTINCT_COUNT_NAME "adbc.statistic.distinct_count"
-
+pub const ADBC_STATISTIC_DISTINCT_COUNT_NAME: &str = "adbc.statistic.distinct_count";
 pub const ADBC_STATISTIC_MAX_BYTE_WIDTH_KEY: i16 = 2;
-// #define ADBC_STATISTIC_MAX_BYTE_WIDTH_NAME "adbc.statistic.byte_width"
-
+pub const ADBC_STATISTIC_MAX_BYTE_WIDTH_NAME: &str = "adbc.statistic.max_byte_width";
 pub const ADBC_STATISTIC_MAX_VALUE_KEY: i16 = 3;
-// #define ADBC_STATISTIC_MAX_VALUE_NAME "adbc.statistic.byte_width"
-
+pub const ADBC_STATISTIC_MAX_VALUE_NAME: &str = "adbc.statistic.max_value";
 pub const ADBC_STATISTIC_MIN_VALUE_KEY: i16 = 4;
-// #define ADBC_STATISTIC_MIN_VALUE_NAME "adbc.statistic.byte_width"
-
+pub const ADBC_STATISTIC_MIN_VALUE_NAME: &str = "adbc.statistic.min_value";
 pub const ADBC_STATISTIC_NULL_COUNT_KEY: i16 = 5;
-// #define ADBC_STATISTIC_NULL_COUNT_NAME "adbc.statistic.null_count"
-
+pub const ADBC_STATISTIC_NULL_COUNT_NAME: &str = "adbc.statistic.null_count";
 pub const ADBC_STATISTIC_ROW_COUNT_KEY: i16 = 6;
-// #define ADBC_STATISTIC_ROW_COUNT_NAME "adbc.statistic.row_count"
-
-// #define ADBC_OPTION_VALUE_ENABLED "true"
-// #define ADBC_OPTION_VALUE_DISABLED "false"
-// #define ADBC_ERROR_1_0_0_SIZE (offsetof(struct AdbcError, private_data))
-// #define ADBC_ERROR_1_1_0_SIZE (sizeof(struct AdbcError))
-// #define ADBC_DRIVER_1_0_0_SIZE (offsetof(struct AdbcDriver, ErrorGetDetailCount))
-// #define ADBC_DRIVER_1_1_0_SIZE (sizeof(struct AdbcDriver))
+pub const ADBC_STATISTIC_ROW_COUNT_NAME: &str = "adbc.statistic.row_count";
