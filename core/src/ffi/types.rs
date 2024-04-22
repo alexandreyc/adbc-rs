@@ -606,7 +606,7 @@ impl Drop for FFI_AdbcDriver {
             let mut error = FFI_AdbcError::default();
             let status = unsafe { release(self, &mut error) };
             if let Err(err) = check_status(status, error) {
-                panic!("Unable to drop FFI_AdbcDriver: {:?}", err);
+                panic!("Unable to drop FFI_AdbcDriver: {err:?}");
             }
         }
     }

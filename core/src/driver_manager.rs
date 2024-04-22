@@ -365,7 +365,7 @@ impl Drop for ManagedDatabaseInner {
         let method = driver_method!(driver, DatabaseRelease);
         let status = unsafe { method(database.deref_mut(), &mut error) };
         if let Err(err) = check_status(status, error) {
-            panic!("unable to drop database: {:?}", err);
+            panic!("Unable to drop ManagedDatabaseInner: {err:?}");
         }
     }
 }
@@ -528,7 +528,7 @@ impl Drop for ManagedConnectionInner {
         let method = driver_method!(driver, ConnectionRelease);
         let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
         if let Err(err) = check_status(status, error) {
-            panic!("unable to drop connection: {:?}", err);
+            panic!("Unable to drop ManagedConnectionInner: {err:?}");
         }
     }
 }
@@ -1225,7 +1225,7 @@ impl Drop for ManagedStatement {
         let method = driver_method!(driver, StatementRelease);
         let status = unsafe { method(self.statement.borrow_mut().deref_mut(), &mut error) };
         if let Err(err) = check_status(status, error) {
-            panic!("unable to drop statement: {:?}", err);
+            panic!("Unable to drop ManagedStatement: {err:?}");
         }
     }
 }
