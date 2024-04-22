@@ -94,7 +94,6 @@ use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 
 use crate::{
     error::{Error, Status},
-    ffi::check_status,
     options::{self, AdbcVersion, InfoCode, OptionValue},
     PartitionedResult, Result,
 };
@@ -105,6 +104,17 @@ const ERR_ONLY_STRING_OPT: &str = "Only string option value are supported with A
 const ERR_CANCEL_UNSUPPORTED: &str =
     "Canceling connection or statement is not supported with ADBC 1.0.0";
 const ERR_STATISTICS_UNSUPPORTED: &str = "Statistics are not supported with ADBC 1.0.0";
+
+fn check_status(status: ffi::FFI_AdbcStatusCode, error: ffi::FFI_AdbcError) -> Result<()> {
+    match status {
+        ffi::constants::ADBC_STATUS_OK => Ok(()),
+        _ => {
+            let mut error: Error = error.try_into()?;
+            error.status = status.try_into()?;
+            Err(error)
+        }
+    }
+}
 
 impl From<libloading::Error> for Error {
     fn from(value: libloading::Error) -> Self {
@@ -361,12 +371,10 @@ impl Drop for ManagedDatabaseInner {
     fn drop(&mut self) {
         let driver = &self.driver.driver;
         let mut database = self.database.lock().unwrap();
-        let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, DatabaseRelease);
-        let status = unsafe { method(database.deref_mut(), &mut error) };
-        if let Err(err) = check_status(status, error) {
-            panic!("Unable to drop ManagedDatabaseInner: {err:?}");
-        }
+        // TODO(alexandreyc): how should we handle `DatabaseRelease` failing?
+        // See: https://github.com/apache/arrow-adbc/pull/1742#discussion_r1574388409
+        unsafe { method(database.deref_mut(), null_mut()) };
     }
 }
 
@@ -524,12 +532,10 @@ struct ManagedConnectionInner {
 impl Drop for ManagedConnectionInner {
     fn drop(&mut self) {
         let driver = &self.database.driver.driver;
-        let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, ConnectionRelease);
-        let status = unsafe { method(self.connection.borrow_mut().deref_mut(), &mut error) };
-        if let Err(err) = check_status(status, error) {
-            panic!("Unable to drop ManagedConnectionInner: {err:?}");
-        }
+        // TODO(alexandreyc): how should we handle `ConnectionRelease` failing?
+        // See: https://github.com/apache/arrow-adbc/pull/1742#discussion_r1574388409
+        unsafe { method(self.connection.borrow_mut().deref_mut(), null_mut()) };
     }
 }
 
@@ -1221,11 +1227,9 @@ impl Optionable for ManagedStatement {
 impl Drop for ManagedStatement {
     fn drop(&mut self) {
         let driver = &self.connection.database.driver.driver;
-        let mut error = ffi::FFI_AdbcError::with_driver(driver);
         let method = driver_method!(driver, StatementRelease);
-        let status = unsafe { method(self.statement.borrow_mut().deref_mut(), &mut error) };
-        if let Err(err) = check_status(status, error) {
-            panic!("Unable to drop ManagedStatement: {err:?}");
-        }
+        // TODO(alexandreyc): how should we handle `StatementRelease` failing?
+        // See: https://github.com/apache/arrow-adbc/pull/1742#discussion_r1574388409
+        unsafe { method(self.statement.borrow_mut().deref_mut(), null_mut()) };
     }
 }
