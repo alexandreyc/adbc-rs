@@ -38,8 +38,9 @@
 //! used by other langages via their own driver manager. Once you have an
 //! implementation of [Driver], provided that it also implements [Default], you
 //! can build it as an object file implementing the C API with the
-//! [export_driver!] macro.
+//! [export_driver] macro.
 
+#[doc(hidden)]
 pub mod driver_exporter;
 #[cfg(feature = "driver_manager")]
 pub mod driver_manager;
@@ -47,8 +48,6 @@ pub mod error;
 pub mod ffi;
 pub mod options;
 pub mod schemas;
-
-pub use ffi::FFI_AdbcDriverInitFunc as AdbcDriverInitFunc;
 
 use std::collections::HashSet;
 
@@ -318,7 +317,7 @@ pub trait Connection: Optionable<Option = OptionConnection> {
     /// - `table_name` - The table name (or `None` if not applicable). May be a search pattern
     /// - `approximate` - If false, request exact values of statistics, else
     /// allow for best-effort, approximate, or cached values. The database may
-    /// return approximate values regardless, as indicated in the result.  
+    /// return approximate values regardless, as indicated in the result.
     /// Requesting exact values may be expensive or unsupported.
     ///
     /// # Result

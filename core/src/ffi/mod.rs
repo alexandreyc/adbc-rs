@@ -1,3 +1,5 @@
+//! C-compatible items as defined in [`adbc.h`](https://github.com/apache/arrow-adbc/blob/main/adbc.h)
+
 pub mod constants;
 pub(crate) mod methods;
 pub(crate) mod types;

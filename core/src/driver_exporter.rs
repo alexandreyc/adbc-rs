@@ -143,6 +143,7 @@ macro_rules! export_driver {
 /// `Ok`, the expression resolves to the value. Otherwise, it will return early,
 /// setting the error and status code appropriately. In order for this to work,
 /// the error must be convertible to [crate::error::Error].
+#[doc(hidden)]
 #[macro_export]
 macro_rules! check_err {
     ($res:expr, $err_out:expr) => {
