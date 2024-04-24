@@ -67,7 +67,7 @@ pub fn make_ffi_driver<DriverType: Driver + Default + 'static>() -> FFI_AdbcDriv
         StatementSetSubstraitPlan: Some(statement_set_substrait_plan::<DriverType>),
         ErrorGetDetailCount: Some(error_get_detail_count),
         ErrorGetDetail: Some(error_get_detail),
-        ErrorFromArrayStream: None,
+        ErrorFromArrayStream: None, // TODO(alexandreyc): what to do with this?
         DatabaseGetOption: Some(database_get_option::<DriverType>),
         DatabaseGetOptionBytes: Some(database_get_option_bytes::<DriverType>),
         DatabaseGetOptionDouble: Some(database_get_option_double::<DriverType>),
@@ -202,13 +202,12 @@ unsafe fn copy_string(src: &str, dst: *mut c_char, length: *mut usize) -> Result
     Ok::<(), Error>(())
 }
 
-unsafe fn copy_bytes(src: &[u8], dst: *mut u8, length: *mut usize) -> Result<()> {
+unsafe fn copy_bytes(src: &[u8], dst: *mut u8, length: *mut usize) {
     let n = src.len();
     if n <= *length {
         std::ptr::copy(src.as_ptr(), dst, n);
     }
     *length = n;
-    Ok::<(), Error>(())
 }
 
 unsafe fn get_option_int<'a, OptionType, Object>(
@@ -569,7 +568,7 @@ unsafe extern "C" fn database_get_option_bytes<DriverType: Driver + Default>(
 
     let optvalue = get_option_bytes(exported.database.as_ref(), &mut exported.options, key);
     let optvalue = check_err!(optvalue, error);
-    check_err!(copy_bytes(&optvalue, value, length), error);
+    copy_bytes(&optvalue, value, length);
 
     ADBC_STATUS_OK
 }
@@ -810,7 +809,7 @@ unsafe extern "C" fn connection_get_option_bytes<DriverType: Driver + Default>(
 
     let optvalue = get_option_bytes(exported.connection.as_ref(), &mut exported.options, key);
     let optvalue = check_err!(optvalue, error);
-    check_err!(copy_bytes(&optvalue, value, length), error);
+    copy_bytes(&optvalue, value, length);
 
     ADBC_STATUS_OK
 }
@@ -1302,7 +1301,7 @@ unsafe extern "C" fn statement_get_option_bytes<DriverType: Driver + Default>(
     let exported = check_err!(statement_private_data::<DriverType>(statement), error);
     let optvalue = get_option_bytes(Some(&exported.statement), &mut None, key);
     let optvalue = check_err!(optvalue, error);
-    check_err!(copy_bytes(&optvalue, value, length), error);
+    copy_bytes(&optvalue, value, length);
     ADBC_STATUS_OK
 }
 
