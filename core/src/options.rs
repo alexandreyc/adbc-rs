@@ -11,6 +11,7 @@ use crate::{
 ///
 /// Can be created with various implementations of [From].
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum OptionValue {
     String(String),
     Bytes(Vec<u8>),
@@ -147,7 +148,6 @@ impl TryFrom<u32> for InfoCode {
 /// Depth parameter for [get_objects][crate::Connection::get_objects] method.
 #[derive(Debug)]
 #[non_exhaustive]
-// TODO: add #[repr(i32)] ???
 pub enum ObjectDepth {
     /// Catalogs, schemas, tables, and columns.
     All,
@@ -446,9 +446,8 @@ pub enum IngestMode {
     /// Create the table and insert data; error if the table exists.
     Create,
     /// Do not create the table, and insert data; error if the table does not
-    /// exist ([Status::NotFound][crate::error::Status::NotFound]) or does not
-    /// match the schema of the data to append
-    /// ([Status::AlreadyExists][crate::error::Status::AlreadyExists]).
+    /// exist ([Status::NotFound]) or does not match the schema of the data to
+    /// append ([Status::AlreadyExists]).
     Append,
     /// Create the table and insert data; drop the original table if it already
     /// exists.
@@ -459,7 +458,7 @@ pub enum IngestMode {
     Replace,
     /// Insert data; create the table if it does not exist, or error if the
     /// table exists, but the schema does not match the schema of the data to
-    /// append ([Status::AlreadyExists][crate::error::Status::AlreadyExists]).
+    /// append ([Status::AlreadyExists]).
     ///
     /// # Since
     ///
