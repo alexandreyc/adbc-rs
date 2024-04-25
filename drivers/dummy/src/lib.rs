@@ -13,15 +13,12 @@ use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use adbc_core::{
     error::{Error, Result, Status},
+    ffi::constants,
     options::{
         InfoCode, ObjectDepth, OptionConnection, OptionDatabase, OptionStatement, OptionValue,
     },
     schemas, Connection, Database, Driver, Optionable, PartitionedResult, Statement,
 };
-
-// TODO(alexandreyc): remove these two constants when the ffi module is integrated
-pub const ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA: i32 = i32::MIN;
-pub const ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY: i16 = 0;
 
 #[derive(Debug)]
 pub struct SingleBatchReader {
@@ -275,7 +272,7 @@ impl Connection for DummyConnection {
     // This method is used to test that errors round-trip correctly.
     fn cancel(&mut self) -> Result<()> {
         let mut error = Error::with_message_and_status("message", Status::Cancelled);
-        error.vendor_code = ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA;
+        error.vendor_code = constants::ADBC_ERROR_VENDOR_CODE_PRIVATE_DATA;
         error.sqlstate = [1, 2, 3, 4, 5];
         error.details = Some(vec![
             ("key1".into(), b"AAA".into()),
@@ -677,7 +674,7 @@ impl Connection for DummyConnection {
             (
                 Arc::new(Field::new("statistic_key", DataType::Int16, false)),
                 Arc::new(Int16Array::from(vec![
-                    ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY,
+                    constants::ADBC_STATISTIC_AVERAGE_BYTE_WIDTH_KEY,
                 ])) as ArrayRef,
             ),
             (
