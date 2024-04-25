@@ -10,7 +10,7 @@ use crate::{
 /// Option value.
 ///
 /// Can be created with various implementations of [From].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum OptionValue {
     String(String),
@@ -191,7 +191,7 @@ impl TryFrom<c_int> for ObjectDepth {
 }
 
 /// Database option key.
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[non_exhaustive]
 pub enum OptionDatabase {
     /// Canonical option key for URIs.
@@ -239,7 +239,7 @@ impl From<&str> for OptionDatabase {
 }
 
 /// Connection option key.
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[non_exhaustive]
 pub enum OptionConnection {
     /// Whether autocommit is enabled.
@@ -287,7 +287,7 @@ impl From<&str> for OptionConnection {
 }
 
 /// Statement option key.
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[non_exhaustive]
 pub enum OptionStatement {
     /// The ingest mode for a bulk insert. See [IngestMode].
