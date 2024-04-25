@@ -142,7 +142,7 @@ pub struct DriverManager {
 
 impl DriverManager {
     /// Load a driver from an initialization function.
-    pub fn load_static(init: &crate::AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
+    pub fn load_static(init: &ffi::FFI_AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
         let driver = Self::load_impl(init, version)?;
         let inner = Arc::new(DriverManagerInner {
             driver,
