@@ -42,7 +42,7 @@
 
 mod driver_exporter;
 #[doc(hidden)]
-pub use driver_exporter::make_ffi_driver;
+pub use driver_exporter::FFIDriver;
 #[cfg(feature = "driver_manager")]
 pub mod driver_manager;
 pub mod error;
