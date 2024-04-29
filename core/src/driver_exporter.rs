@@ -280,6 +280,7 @@ unsafe fn copy_bytes(src: &[u8], dst: *mut u8, length: *mut usize) {
     *length = n;
 }
 
+// SAFETY: Will panic if `key` is null.
 unsafe fn get_option_int<'a, OptionType, Object>(
     object: Option<&mut Object>,
     options: Option<&mut HashMap<OptionType, OptionValue>>,
@@ -289,6 +290,7 @@ where
     OptionType: Hash + Eq + From<&'a str>,
     Object: Optionable<Option = OptionType>,
 {
+    assert!(!key.is_null());
     let key = CStr::from_ptr(key).to_str()?;
 
     if let Some(options) = options {
@@ -302,7 +304,10 @@ where
             Ok(*optvalue)
         } else {
             let err = Error::with_message_and_status(
-                format!("Option value for key {key:?} has wrong type"),
+                format!(
+                    "Option value for key {key:?} has wrong type (got={}, expected=Int)",
+                    optvalue.get_type()
+                ),
                 Status::InvalidState,
             );
             Err(err)
@@ -314,6 +319,7 @@ where
     }
 }
 
+// SAFETY: Will panic if `key` is null.
 unsafe fn get_option_double<'a, OptionType, Object>(
     object: Option<&mut Object>,
     options: Option<&mut HashMap<OptionType, OptionValue>>,
@@ -323,6 +329,7 @@ where
     OptionType: Hash + Eq + From<&'a str>,
     Object: Optionable<Option = OptionType>,
 {
+    assert!(!key.is_null());
     let key = CStr::from_ptr(key).to_str()?;
 
     if let Some(options) = options {
@@ -336,7 +343,10 @@ where
             Ok(*optvalue)
         } else {
             let err = Error::with_message_and_status(
-                format!("Option value for key {:?} has wrong type", key),
+                format!(
+                    "Option value for key {key:?} has wrong type (got={}, expected=Double)",
+                    optvalue.get_type()
+                ),
                 Status::InvalidState,
             );
             Err(err)
@@ -348,6 +358,7 @@ where
     }
 }
 
+// SAFETY: Will panic if `key` is null.
 unsafe fn get_option<'a, OptionType, Object>(
     object: Option<&mut Object>,
     options: Option<&mut HashMap<OptionType, OptionValue>>,
@@ -357,6 +368,7 @@ where
     OptionType: Hash + Eq + From<&'a str>,
     Object: Optionable<Option = OptionType>,
 {
+    assert!(!key.is_null());
     let key = CStr::from_ptr(key).to_str()?;
 
     if let Some(options) = options {
@@ -370,18 +382,22 @@ where
             Ok(optvalue.clone())
         } else {
             let err = Error::with_message_and_status(
-                format!("Option value for key {key:?} has wrong type"),
+                format!(
+                    "Option value for key {key:?} has wrong type (got={}, expected=String)",
+                    optvalue.get_type()
+                ),
                 Status::InvalidState,
             );
             Err(err)
         }
     } else {
-        let database = object.expect("Broken invariant");
-        let optvalue = database.get_option_string(key.into())?;
+        let object = object.expect("Broken invariant");
+        let optvalue = object.get_option_string(key.into())?;
         Ok(optvalue)
     }
 }
 
+// SAFETY: Will panic if `key` is null.
 unsafe fn get_option_bytes<'a, OptionType, Object>(
     object: Option<&mut Object>,
     options: Option<&mut HashMap<OptionType, OptionValue>>,
@@ -391,6 +407,7 @@ where
     OptionType: Hash + Eq + From<&'a str>,
     Object: Optionable<Option = OptionType>,
 {
+    assert!(!key.is_null());
     let key = CStr::from_ptr(key).to_str()?;
 
     if let Some(options) = options {
@@ -404,14 +421,17 @@ where
             Ok(optvalue.clone())
         } else {
             let err = Error::with_message_and_status(
-                format!("Option value for key {key:?} has wrong type"),
+                format!(
+                    "Option value for key {key:?} has wrong type (got={}, expected=Bytes)",
+                    optvalue.get_type()
+                ),
                 Status::InvalidState,
             );
             Err(err)
         }
     } else {
-        let connection = object.expect("Broken invariant");
-        let optvalue = connection.get_option_bytes(key.into())?;
+        let object = object.expect("Broken invariant");
+        let optvalue = object.get_option_bytes(key.into())?;
         Ok(optvalue)
     }
 }
