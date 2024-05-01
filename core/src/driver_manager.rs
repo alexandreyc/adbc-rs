@@ -386,6 +386,7 @@ pub struct ManagedDatabase {
 
 impl Optionable for ManagedDatabase {
     type Option = options::OptionDatabase;
+
     fn get_option_bytes(&self, key: Self::Option) -> Result<Vec<u8>> {
         let driver = &self.inner.driver.driver;
         let mut database = self.inner.database.lock().unwrap();
@@ -398,6 +399,7 @@ impl Optionable for ManagedDatabase {
         };
         get_option_bytes(key, populate, driver)
     }
+
     fn get_option_double(&self, key: Self::Option) -> Result<f64> {
         let driver = &self.inner.driver.driver;
         let mut database = self.inner.database.lock().unwrap();
@@ -409,6 +411,7 @@ impl Optionable for ManagedDatabase {
         check_status(status, error)?;
         Ok(value)
     }
+
     fn get_option_int(&self, key: Self::Option) -> Result<i64> {
         let driver = &self.inner.driver.driver;
         let mut database = self.inner.database.lock().unwrap();
@@ -420,6 +423,7 @@ impl Optionable for ManagedDatabase {
         check_status(status, error)?;
         Ok(value)
     }
+
     fn get_option_string(&self, key: Self::Option) -> Result<String> {
         let driver = &self.inner.driver.driver;
         let mut database = self.inner.database.lock().unwrap();
@@ -432,6 +436,7 @@ impl Optionable for ManagedDatabase {
         };
         get_option_string(key, populate, driver)
     }
+
     fn set_option(&mut self, key: Self::Option, value: OptionValue) -> Result<()> {
         let driver = &self.inner.driver.driver;
         let mut database = self.inner.database.lock().unwrap();
@@ -546,6 +551,7 @@ pub struct ManagedConnection {
 
 impl Optionable for ManagedConnection {
     type Option = options::OptionConnection;
+
     fn get_option_bytes(&self, key: Self::Option) -> Result<Vec<u8>> {
         let driver = &self.inner.database.driver.driver;
         let method = driver_method!(driver, ConnectionGetOptionBytes);
@@ -563,6 +569,7 @@ impl Optionable for ManagedConnection {
         };
         get_option_bytes(key, populate, driver)
     }
+
     fn get_option_double(&self, key: Self::Option) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut value: f64 = 0.0;
@@ -580,6 +587,7 @@ impl Optionable for ManagedConnection {
         check_status(status, error)?;
         Ok(value)
     }
+
     fn get_option_int(&self, key: Self::Option) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut value: i64 = 0;
@@ -597,6 +605,7 @@ impl Optionable for ManagedConnection {
         check_status(status, error)?;
         Ok(value)
     }
+
     fn get_option_string(&self, key: Self::Option) -> Result<String> {
         let driver = &self.inner.database.driver.driver;
         let method = driver_method!(driver, ConnectionGetOption);
@@ -614,6 +623,7 @@ impl Optionable for ManagedConnection {
         };
         get_option_string(key, populate, driver)
     }
+
     fn set_option(&mut self, key: Self::Option, value: OptionValue) -> Result<()> {
         let driver = &self.inner.database.driver.driver;
         set_option_connection(
@@ -1144,6 +1154,7 @@ impl Statement for ManagedStatement {
 
 impl Optionable for ManagedStatement {
     type Option = options::OptionStatement;
+
     fn get_option_bytes(&self, key: Self::Option) -> Result<Vec<u8>> {
         let driver = &self.connection.database.driver.driver;
         let method = driver_method!(driver, StatementGetOptionBytes);
@@ -1161,6 +1172,7 @@ impl Optionable for ManagedStatement {
         };
         get_option_bytes(key, populate, driver)
     }
+
     fn get_option_double(&self, key: Self::Option) -> Result<f64> {
         let key = CString::new(key.as_ref())?;
         let mut value: f64 = 0.0;
@@ -1178,6 +1190,7 @@ impl Optionable for ManagedStatement {
         check_status(status, error)?;
         Ok(value)
     }
+
     fn get_option_int(&self, key: Self::Option) -> Result<i64> {
         let key = CString::new(key.as_ref())?;
         let mut value: i64 = 0;
@@ -1195,6 +1208,7 @@ impl Optionable for ManagedStatement {
         check_status(status, error)?;
         Ok(value)
     }
+
     fn get_option_string(&self, key: Self::Option) -> Result<String> {
         let driver = &self.connection.database.driver.driver;
         let method = driver_method!(driver, StatementGetOption);
@@ -1212,6 +1226,7 @@ impl Optionable for ManagedStatement {
         };
         get_option_string(key, populate, driver)
     }
+
     fn set_option(&mut self, key: Self::Option, value: OptionValue) -> Result<()> {
         let driver = &self.connection.database.driver.driver;
         set_option_statement(
