@@ -2,15 +2,15 @@ use std::env;
 
 use arrow::datatypes::{DataType, Field, Schema};
 
-use adbc_core::driver_manager::{DriverManager, ManagedDatabase};
+use adbc_core::driver_manager::{ManagedDatabase, ManagedDriver};
 use adbc_core::options::{AdbcVersion, OptionConnection, OptionDatabase, OptionStatement};
 use adbc_core::{error::Status, Driver, Optionable};
 use adbc_core::{Connection, Database, Statement};
 
 mod common;
 
-fn get_driver() -> DriverManager {
-    DriverManager::load_dynamic("adbc_driver_postgresql", None, AdbcVersion::V110).unwrap()
+fn get_driver() -> ManagedDriver {
+    ManagedDriver::load_dynamic("adbc_driver_postgresql", None, AdbcVersion::V110).unwrap()
 }
 
 fn get_uri() -> String {
@@ -18,7 +18,7 @@ fn get_uri() -> String {
         .expect("environment variable TEST_ADBC_POSTGRESQL_URI is not defined")
 }
 
-fn get_database(driver: &mut DriverManager) -> ManagedDatabase {
+fn get_database(driver: &mut ManagedDriver) -> ManagedDatabase {
     let opts = [(OptionDatabase::Uri, get_uri().into())];
     driver.new_database_with_opts(opts).unwrap()
 }

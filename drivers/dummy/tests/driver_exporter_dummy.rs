@@ -11,7 +11,7 @@ use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use adbc_core::driver_manager::{
-    DriverManager, ManagedConnection, ManagedDatabase, ManagedStatement,
+    ManagedConnection, ManagedDatabase, ManagedDriver, ManagedStatement,
 };
 use adbc_core::options::{
     AdbcVersion, InfoCode, IngestMode, IsolationLevel, ObjectDepth, OptionConnection,
@@ -46,13 +46,13 @@ pub fn sample_batch() -> RecordBatch {
 }
 
 fn get_exported() -> (
-    DriverManager,
+    ManagedDriver,
     ManagedDatabase,
     ManagedConnection,
     ManagedStatement,
 ) {
     let mut driver =
-        DriverManager::load_dynamic("adbc_dummy", Some(b"DummyDriverInit"), AdbcVersion::V110)
+        ManagedDriver::load_dynamic("adbc_dummy", Some(b"DummyDriverInit"), AdbcVersion::V110)
             .unwrap();
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();

@@ -6,11 +6,11 @@
 //!
 //! There are three ways that drivers can be loaded:
 //! 1. By statically linking the driver implementation using
-//! [DriverManager::load_static].
+//! [ManagedDriver::load_static].
 //! 2. By dynamically linking the driver implementation using
-//! [DriverManager::load_static].
+//! [ManagedDriver::load_static].
 //! 3. By loading the driver implementation at runtime (with
-//! `dlopen/LoadLibrary`) using [DriverManager::load_dynamic].
+//! `dlopen/LoadLibrary`) using [ManagedDriver::load_dynamic].
 //!
 //! Drivers are initialized using a function provided by the driver as a main
 //! entrypoint, canonically called `AdbcDriverInit`. Although many will use a
@@ -19,7 +19,7 @@
 //!
 //! ## Using across threads
 //!
-//! [DriverManager] and [ManagedDatabase] are [Send] and [Sync] and thus can be
+//! [ManagedDriver] and [ManagedDatabase] are [Send] and [Sync] and thus can be
 //! used across multiple threads. They hold their inner implementations within
 //! [std::sync::Arc], so they are cheaply clonable.
 //!
@@ -38,13 +38,13 @@
 //! #     compute::concat_batches,
 //! # };
 //! # use adbc_core::{
-//! #     driver_manager::DriverManager,
+//! #     driver_manager::ManagedDriver,
 //! #     options::{AdbcVersion, OptionDatabase, OptionStatement},
 //! #     Connection, Database, Driver, Statement, Optionable
 //! # };
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let opts = [(OptionDatabase::Uri, ":memory:".into())];
-//! let mut driver = DriverManager::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100)?;
+//! let mut driver = ManagedDriver::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100)?;
 //! let mut database = driver.new_database_with_opts(opts)?;
 //! let mut connection = database.new_connection()?;
 //! let mut statement = connection.new_statement()?;
@@ -136,11 +136,11 @@ struct DriverManagerInner {
 
 /// Implementation of [Driver].
 #[derive(Clone)]
-pub struct DriverManager {
+pub struct ManagedDriver {
     inner: Arc<DriverManagerInner>,
 }
 
-impl DriverManager {
+impl ManagedDriver {
     /// Load a driver from an initialization function.
     pub fn load_static(init: &ffi::FFI_AdbcDriverInitFunc, version: AdbcVersion) -> Result<Self> {
         let driver = Self::load_impl(init, version)?;
@@ -149,7 +149,7 @@ impl DriverManager {
             version,
             _library: None,
         });
-        Ok(DriverManager { inner })
+        Ok(ManagedDriver { inner })
     }
 
     /// Load a driver from a dynamic library.
@@ -175,7 +175,7 @@ impl DriverManager {
             version,
             _library: Some(library),
         });
-        Ok(DriverManager { inner })
+        Ok(ManagedDriver { inner })
     }
 
     fn load_impl(
@@ -196,7 +196,7 @@ impl DriverManager {
     }
 }
 
-impl Driver for DriverManager {
+impl Driver for ManagedDriver {
     type DatabaseType = ManagedDatabase;
 
     fn new_database(&mut self) -> Result<Self::DatabaseType> {

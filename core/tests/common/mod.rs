@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use adbc_core::driver_manager::{
-    DriverManager, ManagedConnection, ManagedDatabase, ManagedStatement,
+    ManagedConnection, ManagedDatabase, ManagedDriver, ManagedStatement,
 };
 use adbc_core::error::Status;
 use adbc_core::options::{
@@ -67,7 +67,7 @@ pub fn concat_reader(reader: impl RecordBatchReader) -> RecordBatch {
     concat_batches(&schema, &batches).unwrap()
 }
 
-pub fn test_driver(driver: &mut DriverManager, uri: &str) {
+pub fn test_driver(driver: &mut ManagedDriver, uri: &str) {
     let opts = [(OptionDatabase::Uri, uri.into())];
     driver.new_database_with_opts(opts).unwrap();
 

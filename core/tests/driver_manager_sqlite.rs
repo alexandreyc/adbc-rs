@@ -1,6 +1,6 @@
 use arrow::datatypes::{Field, Schema};
 
-use adbc_core::driver_manager::{DriverManager, ManagedDatabase};
+use adbc_core::driver_manager::{ManagedDatabase, ManagedDriver};
 use adbc_core::options::{AdbcVersion, OptionConnection, OptionDatabase};
 use adbc_core::{error::Status, Driver, Optionable};
 use adbc_core::{Connection, Database, Statement};
@@ -11,11 +11,11 @@ mod common;
 // each test, preventing noisy neighbor issues on tests.
 const URI: &str = ":memory:";
 
-fn get_driver() -> DriverManager {
-    DriverManager::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100).unwrap()
+fn get_driver() -> ManagedDriver {
+    ManagedDriver::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100).unwrap()
 }
 
-fn get_database(driver: &mut DriverManager) -> ManagedDatabase {
+fn get_database(driver: &mut ManagedDriver) -> ManagedDatabase {
     let opts = [(OptionDatabase::Uri, URI.into())];
     driver.new_database_with_opts(opts).unwrap()
 }
