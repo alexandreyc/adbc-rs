@@ -12,7 +12,7 @@ mod common;
 const URI: &str = ":memory:";
 
 fn get_driver() -> ManagedDriver {
-    ManagedDriver::load_dynamic("adbc_driver_sqlite", None, AdbcVersion::V100).unwrap()
+    ManagedDriver::load_dynamic_from_name("adbc_driver_sqlite", None, AdbcVersion::V100).unwrap()
 }
 
 fn get_database(driver: &mut ManagedDriver) -> ManagedDatabase {

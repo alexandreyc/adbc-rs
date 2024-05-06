@@ -51,9 +51,12 @@ fn get_exported() -> (
     ManagedConnection,
     ManagedStatement,
 ) {
-    let mut driver =
-        ManagedDriver::load_dynamic("adbc_dummy", Some(b"DummyDriverInit"), AdbcVersion::V110)
-            .unwrap();
+    let mut driver = ManagedDriver::load_dynamic_from_name(
+        "adbc_dummy",
+        Some(b"DummyDriverInit"),
+        AdbcVersion::V110,
+    )
+    .unwrap();
     let mut database = driver.new_database().unwrap();
     let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();

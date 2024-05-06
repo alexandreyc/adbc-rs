@@ -10,7 +10,8 @@ use adbc_core::{Connection, Database, Statement};
 mod common;
 
 fn get_driver() -> ManagedDriver {
-    ManagedDriver::load_dynamic("adbc_driver_postgresql", None, AdbcVersion::V110).unwrap()
+    ManagedDriver::load_dynamic_from_name("adbc_driver_postgresql", None, AdbcVersion::V110)
+        .unwrap()
 }
 
 fn get_uri() -> String {
