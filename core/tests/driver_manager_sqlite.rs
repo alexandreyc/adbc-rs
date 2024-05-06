@@ -196,18 +196,18 @@ fn test_statement_set_substrait_plan() {
 }
 
 #[test]
-fn test_statement_get_parameters_schema() {
+fn test_statement_get_parameter_schema() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     let mut statement = connection.new_statement().unwrap();
 
-    let error = statement.get_parameters_schema().unwrap_err();
+    let error = statement.get_parameter_schema().unwrap_err();
     assert_eq!(error.status, Status::InvalidState);
 
     statement.set_sql_query("select 42").unwrap();
     statement.prepare().unwrap();
-    let got = statement.get_parameters_schema().unwrap();
+    let got = statement.get_parameter_schema().unwrap();
     let fields: Vec<Field> = vec![];
     let actual = Schema::new(fields);
     assert_eq!(got, actual);

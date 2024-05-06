@@ -625,11 +625,11 @@ fn test_statement_set_substrait_plan() {
 }
 
 #[test]
-fn test_statement_get_parameters_schema() {
+fn test_statement_get_parameter_schema() {
     let (_, _, _, exported_statement) = get_exported();
     let (_, _, _, native_statement) = get_native();
 
-    let exported_schema = exported_statement.get_parameters_schema().unwrap();
-    let native_schema = native_statement.get_parameters_schema().unwrap();
+    let exported_schema = exported_statement.get_parameter_schema().unwrap();
+    let native_schema = native_statement.get_parameter_schema().unwrap();
     assert_eq!(exported_schema, native_schema);
 }

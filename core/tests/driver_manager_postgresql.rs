@@ -297,12 +297,12 @@ fn test_statement_set_substrait_plan() {
 }
 
 #[test]
-fn test_statement_get_parameters_schema() {
+fn test_statement_get_parameter_schema() {
     let mut driver = get_driver();
     let mut database = get_database(&mut driver);
     let mut connection = database.new_connection().unwrap();
     let statement = connection.new_statement().unwrap();
-    let error = statement.get_parameters_schema().unwrap_err();
+    let error = statement.get_parameter_schema().unwrap_err();
     assert_eq!(error.status, Status::NotImplemented);
 }
 
